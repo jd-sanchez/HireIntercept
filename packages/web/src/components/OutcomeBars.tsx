@@ -54,7 +54,7 @@ export function OutcomeBars({ rows, legend }: OutcomeBarsProps) {
                   style={{ width: `${shareOf(segment.count, total)}%` }}
                   title={`${segment.count} ${segment.label.toLowerCase()}`}
                 >
-                  {shareOf(segment.count, total) >= 9 ? segment.count : ''}
+                  {shareOf(segment.count, total) >= 5 ? segment.count : ''}
                 </span>
               ))}
             </div>

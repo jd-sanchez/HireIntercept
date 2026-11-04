@@ -1,6 +1,5 @@
 import { ContactState, StepStatus, StopReason, type ContactSequence, type SequenceReport } from '@hireintercept/core/sequences'
 import { roundedShare } from '@hireintercept/core/math'
-import { Tone } from '../components/Badge'
 import { Text, TextTone, TextVariant } from '../components/Text'
 import { PostingLinks } from './PostingLinks'
 import './SequenceTrack.css'
@@ -8,9 +7,9 @@ import './SequenceTrack.css'
 export const STOP_REASON_LABEL: Record<StopReason, string> = {
   [StopReason.RepliedPositive]: 'Positive reply',
   [StopReason.RepliedNegative]: 'Negative reply',
-  [StopReason.Bounced]: 'Bounce (address invalid)',
+  [StopReason.Bounced]: 'Bounce (undeliverable)',
   [StopReason.Unsubscribed]: 'Unsubscribed (permanent)',
-  [StopReason.IneligibleRole]: 'Ineligible role',
+  [StopReason.IneligibleRole]: 'Ineligible job',
 }
 
 const STOP_FLAG_LABEL: Record<StopReason, string> = {
@@ -21,11 +20,10 @@ const STOP_FLAG_LABEL: Record<StopReason, string> = {
   [StopReason.IneligibleRole]: 'Ineligible',
 }
 
-export const STATE_TONE: Record<ContactState, Tone> = {
-  [ContactState.Active]: Tone.Good,
-  [ContactState.Stopped]: Tone.Warn,
-  [ContactState.Suppressed]: Tone.Bad,
-  [ContactState.Held]: Tone.Info,
+const STEP_STATUS_LABEL: Record<StepStatus, string> = {
+  [StepStatus.Sent]: 'Sent',
+  [StepStatus.Pending]: 'Scheduled',
+  [StepStatus.Cancelled]: 'Cancelled',
 }
 
 const STATE_LABEL: Record<ContactState, string> = {
@@ -63,9 +61,9 @@ export function SequenceLegend() {
       <span><i className="seq-marker seq-marker--legend" data-status={StepStatus.Sent} />Sent</span>
       <span><i className="seq-marker seq-marker--legend" data-status={StepStatus.Pending} />Scheduled</span>
       <span><i className="seq-marker seq-marker--legend" data-status={StepStatus.Cancelled} />Cancelled</span>
+      <span><i className="seq-marker seq-marker--legend" data-status={StepStatus.Sent} data-violation="true" />Rule violation</span>
       <span><i className="seq-legend__stop" />Stopped</span>
       <span><i className="seq-legend__stop" data-tone="bad" />Suppressed</span>
-      <span><i className="seq-marker seq-marker--legend" data-status={StepStatus.Sent} data-violation="true" />Rule violation</span>
     </div>
   )
 }
@@ -91,9 +89,9 @@ function TrackRow({ contact, caption, schedule, lastDay }: TrackRowData & { sche
   const stopPosition = contact.stopReason ? positionOf(contact.stopDay ?? 0, lastDay) : null
   const progress = progressPosition(contact, schedule, lastDay, stopPosition)
   const wins = [contact.meetingsBooked > 0 ? 'Meeting booked' : '', contact.clientsWon > 0 ? 'Client won' : ''].filter(Boolean)
+  const flagTone = contact.state === ContactState.Suppressed ? 'bad' : 'warn'
   const hasViolation = contact.steps.some((step) => step.violation)
   const violationReasons = [...new Set(contact.violations.map((violation) => violation.reason))].join(' · ')
-  const flagTone = contact.state === ContactState.Suppressed ? 'bad' : 'warn'
   return (
     <div className="seq-item">
       {caption && <Text variant={TextVariant.Small} tone={TextTone.Soft}>{caption}</Text>}
@@ -103,7 +101,6 @@ function TrackRow({ contact, caption, schedule, lastDay }: TrackRowData & { sche
           <Text variant={TextVariant.Small} tone={TextTone.Muted}><PostingLinks postingIds={contact.postingIds} /></Text>
         </div>
         <div className="seq-track" role="img" aria-label={describeTrack(contact, schedule)}>
-          {schedule.map((entry) => <span key={entry.step} className="seq-gridline" style={{ left: `${positionOf(entry.day, lastDay)}%` }} />)}
           <span className="seq-line" />
           <span className="seq-line seq-line--done" style={{ width: `${progress}%` }} />
           {schedule.map((entry, position) => {
@@ -116,7 +113,7 @@ function TrackRow({ contact, caption, schedule, lastDay }: TrackRowData & { sche
                 data-status={step.status}
                 data-violation={step.violation}
                 style={{ left: `${positionOf(entry.day, lastDay)}%` }}
-                title={`Step ${entry.step} · day ${entry.day}: ${step.status}${step.violation ? ' (violation)' : ''}`}
+                title={`Step ${entry.step} · day ${entry.day}: ${STEP_STATUS_LABEL[step.status]}${step.violation ? ' (violation)' : ''}`}
               />
             )
           })}

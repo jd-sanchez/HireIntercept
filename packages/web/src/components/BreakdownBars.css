@@ -3,8 +3,7 @@
 .ui-breakdown__label { display: grid; gap: 0.1rem; }
 .ui-breakdown__label small { font-size: 0.75rem; color: var(--color-ink-muted); }
 .ui-breakdown__track { height: 0.75rem; border-radius: 999px; background: var(--color-sunken); overflow: hidden; }
-.ui-breakdown__bar { display: block; height: 100%; border-radius: inherit; min-width: 0.25rem; background: var(--color-warn); }
-.ui-breakdown__bar[data-tone='bad'] { background: var(--color-bad); }
+.ui-breakdown__bar { display: block; height: 100%; border-radius: inherit; min-width: 0.25rem; background: var(--color-accent); }
 .ui-breakdown__count { font-weight: 600; text-align: end; font-variant-numeric: tabular-nums; }
 .ui-breakdown__share { color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
 @media (max-width: 40rem) { .ui-breakdown__row { grid-template-columns: 1fr 2rem 3rem; } .ui-breakdown__track { grid-column: 1 / -1; order: 3; } }

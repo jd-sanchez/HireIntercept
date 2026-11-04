@@ -25,7 +25,6 @@
 .seq-tick { position: absolute; bottom: 0; transform: translateX(-50%); display: grid; justify-items: center; line-height: 1.2; white-space: nowrap; text-transform: none; letter-spacing: 0; }
 .seq-tick b { font-weight: 600; color: var(--color-ink-soft); }
 .seq-tick small { font-size: 0.6875rem; font-weight: 400; color: var(--color-ink-muted); }
-.seq-gridline { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--color-line-strong); opacity: 0.6; }
 .seq-legend__title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink); }
 
 .seq-line { position: absolute; left: 0; right: 0; top: 1.65rem; height: 0; border-top: 2px dashed var(--color-line-strong); transform: translateY(-50%); }
@@ -47,8 +46,8 @@
 }
 .seq-flag[data-tone='bad'] { background: var(--color-bad-soft); color: var(--color-bad-ink); }
 .seq-flag[data-edge='true'] { transform: translateX(-0.4rem); }
-.seq-legend__stop[data-tone='bad'] { background: color-mix(in srgb, var(--color-bad) 70%, var(--color-surface)); }
 .seq-legend__stop { display: inline-block; width: 1.125rem; height: 0.625rem; border-radius: 999px; background: color-mix(in srgb, var(--color-warn) 75%, var(--color-surface)); }
+.seq-legend__stop[data-tone='bad'] { background: color-mix(in srgb, var(--color-bad) 70%, var(--color-surface)); }
 
 @media (max-width: 52rem) {
   .seq-row { grid-template-columns: 1fr; gap: var(--space-3); }

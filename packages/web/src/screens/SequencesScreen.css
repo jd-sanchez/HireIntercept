@@ -1,0 +1,5 @@
+.seq-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-3); }
+.seq-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: var(--space-5); align-items: stretch; }
+.seq-pair .ui-outcome__row { grid-template-columns: 6.5rem minmax(0, 1fr); }
+.seq-pair .ui-outcome__summary { display: none; }
+.seq-pair .ui-breakdown__row { grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 1.5rem 2.75rem; gap: var(--space-3); }

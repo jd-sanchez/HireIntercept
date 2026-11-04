@@ -4,7 +4,6 @@ import './BreakdownBars.css'
 export interface BreakdownRow {
   label: string
   count: number
-  tone: 'warn' | 'bad'
   note?: string
 }
 
@@ -21,7 +20,7 @@ export function BreakdownBars({ rows }: { rows: BreakdownRow[] }) {
             <span>{row.label}</span>
             {row.note && <small>{row.note}</small>}
           </div>
-          <span className="ui-breakdown__track"><span className="ui-breakdown__bar ui-grow" data-tone={row.tone} style={{ width: `${shareOf(row.count, largest)}%` }} /></span>
+          <span className="ui-breakdown__track"><span className="ui-breakdown__bar ui-grow" style={{ width: `${shareOf(row.count, largest)}%` }} /></span>
           <span className="ui-breakdown__count">{row.count}</span>
           <span className="ui-breakdown__share">{shareOf(row.count, total)}%</span>
         </div>
