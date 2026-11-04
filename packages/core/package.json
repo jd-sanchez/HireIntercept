@@ -1,0 +1,30 @@
+{
+  "name": "@hireintercept/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "decimal.js": "^10.6.0",
+    "papaparse": "^5.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/papaparse": "^5.5.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./campaign": "./src/campaign.ts",
+    "./sequences": "./src/sequences.ts",
+    "./math": "./src/math.ts"
+  }
+}
