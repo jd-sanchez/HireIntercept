@@ -1,6 +1,6 @@
 # HireIntercept (prototype)
 
-Local prototype that imports synthetic job postings, flags opportunities for overseas remote placement, scores and matches them against a synthetic candidate pool, drafts (never sends) A/B outreach, and simulates campaign tracking with stop rules. Synthetic data only: `.example` domains are fictional, nothing is sent, no external calls, no LLM.
+Local prototype that imports synthetic job postings, flags jobs for overseas remote placement, scores and matches them against a synthetic candidate pool, drafts (never sends) A/B outreach, and simulates campaign tracking with stop rules. Synthetic data only: `.example` domains are fictional, nothing is sent, no external calls, no LLM.
 
 ## Setup
 
@@ -9,7 +9,7 @@ Node 20+.
 ```bash
 npm install
 npm run dev     # API on :3001 + web on http://localhost:5173
-npm test        # core (59) + API (11) tests
+npm test        # core (60) + API (13) tests
 npm run build   # typecheck core/server, build web
 ```
 
@@ -27,26 +27,32 @@ Integration stubs (interfaces in `core/src/integrations.ts`): `ProspectSource` (
 
 Three screens, all driven by the API:
 
-- **Opportunities:** a "Ready to contact" tile (eligible roles with a verified candidate), eligibility tiles that filter the table, a score distribution (click a row to set a minimum score), and the ranked table with industry, role, eligibility and minimum-score filters. A row opens the lead drawer: score breakdown with reasons, eligibility reasons, candidate matches (labelled synthetic), the two drafts, and merged-duplicate conflicts. Posting IDs anywhere in the app open the same drawer.
-- **Campaign:** headline insight and warnings, KPI tiles with A/B splits, a scope bar (all events or eligible-only), a dual funnel (A and B per stage, each showing the share kept from the previous stage), negative signals, a grouped metrics table with a difference column, and data-integrity warnings. "Biggest gap" is the stage with the widest A/B conversion difference, and only counts when both variants had at least 3 contacts at the previous stage, so 1-versus-0 noise is ignored. Open rate is always marked approximate; the sample-size message never declares a winner.
-- **Sequences:** state counts, step outcomes (sent, scheduled or cancelled at each scheduled step, with later steps marked not due as of the latest event), why sequences stopped (by stop rule), the six required stop-rule examples and every contact as a day-by-day timeline with a state and search filter, and the suppression list. Rule violations show the actual reason from the data (for example "Sent to an ineligible contact").
+- **Jobs:** four tiles that split all jobs with no overlap and click to filter the table: **Ready to contact** (eligible, verified candidate, working hours known), **Confirm hours first** (eligible with a verified candidate, but the job does not state whether U.S. hours are required), **Needs verification** and **Ineligible**; then a score distribution (click a row to set a minimum score), and the ranked table with industry, role, eligibility and minimum-score filters. A row opens the job drawer: score breakdown (each line with its own points, plus a bold total per component), eligibility reasons, candidate matches (labelled synthetic), the two drafts, and merged-duplicate conflicts. Posting IDs anywhere in the app open the same drawer. The **Import details** button opens a drawer with row counts per file, how duplicate postings are merged (30 postings become 28 jobs), and a side-by-side comparison of every merged group.
+- **Campaign:** headline insight, KPI tiles with A/B splits, a scope bar (all events or eligible-only), a dual funnel (A and B per stage, each showing the share kept from the previous stage), negative signals, a grouped metrics table with a difference column, and a **Data quality** card. "Biggest gap" is the stage with the widest A/B conversion difference, and only counts when both variants had at least 3 contacts at the previous stage, so 1-versus-0 noise is ignored. Data quality lists each warning with the number of jobs affected, sorted by count (red only where a rule was broken), then the notes on how to read the numbers; it is the same in both scopes. Open rate is always marked approximate; the sample-size message never declares a winner.
+- **Follow-ups:** the proposed schedule, state counts, step outcomes and why follow-ups stopped side by side, then contact timelines with a switch between the six required stop-rule examples and every contact (state and search filters). The **Do-not-contact list** opens in a drawer. Rule violations show the actual reason from the data (for example "Sent to an ineligible contact"; JOB-009 has two, since both recorded sends went to an ineligible contact).
 
 The UI loads the Geist typeface from Google Fonts; offline it falls back to the system font. Nothing else leaves the machine.
 
 ## Data assumptions & decisions
 
 - **One contact per domain.** The data has no emails, so `contact_key` = normalized domain; stops and suppressions apply to every posting at that domain.
+- **A bounce means "undeliverable", not "invalid address".** The data has no email addresses and no bounce reason, so a dead address cannot be told apart from a temporary failure such as a full mailbox. Every bounce stops the sequence for that domain, which is the safe choice, and the contact is flagged `undeliverable`.
+- **Eligibility rules run in order and the first match wins:** on-site, U.S.-only, license required, remote eligibility not stated, a note mentioning a restriction, otherwise eligible. A job that breaks several rules is decided by the first one, and the others are recorded and shown as "Also: …" in the job drawer and the import details. So the two licensed nurse jobs (JOB-009, JOB-019) are decided as "U.S.-only" and list "Also: Requires local license"; the license rule decides no job on its own in this data.
 - **Most-restrictive merge for duplicates** (dedup key: domain + title). Eligibility takes the worst status across the group, with reasons from every member, because wrongly pitching an ineligible role is worse than a missed lead. Display fields come from the most recent posting; the repost signal is the max.
 - **"Unclear local restriction" notes → needs verification**, never assumed eligible. Needs-verification scores are marked provisional and drafts are held.
+- **"Verified" match** means every required skill is covered, the candidate is `available_now=yes`, and `us_hours_available` does not contradict the job. If the job's `us_hours_required` is `unknown` the match is still verified but carries a "Confirm working hours" note, and the job counts under **Confirm hours first**, not **Ready to contact**. Candidates are only ever described as available or able to work U.S. hours when the data says yes.
+- **Follow-up cadence is assumed.** The schedule is steps on days 1, 4, 8 and 15. The events only evidence steps 1 and 2 (days 1 and 4); days 8 and 15 are a proposal. "As of" is day 4, the latest event, so steps 3 and 4 show as not yet due.
 - **Opens are not inferred from replies** (JOB-012 replied with no recorded open). Unique opens = distinct (contact, step); the open rate is always labeled approximate.
+- **Structured fields beat free text.** Five postings (JOB-005, 011, 017, 023, 029) have the note "role reposted" but `repost_count` of 0; scoring uses `repost_count` and the merge, not the note. The "prior recruiter inquiry" note is not used in scoring. Both are visible in the data but not treated as signals.
+- **Odd events are taken as given.** JOB-001's meeting and client win are recorded on day 1, the same day as its first send. JOB-008 and JOB-021 have a bounce and no delivery, so they count as sent but not delivered.
 - **Industry is used as given**, even where company names look mismatched (e.g. "Oakline Legal Group" in E-commerce).
-- **Repeat postings are a signal, not proof.** Every demand-signal reason carries the caveat "a signal of possible ongoing need, not evidence of hiring difficulty".
+- **Repeat postings are a signal, not proof.** The demand-signals section of every score carries the caveat "a signal of possible ongoing need, not evidence of hiring difficulty".
 - **Held vs active:** a needs-verification contact is `held` only if nothing has been sent yet; contacts already in flight (JOB-018) stay `active`.
 - **Warnings are judged against the candidate pool:** "Variant A sent with no verified candidate" checks whether any verified candidate exists for the role, even if the role is ineligible.
 
 ## Simplifications
 
-No database (in-memory, computed at startup), a fixed "as of" day (latest event, day 4), deterministic email templates instead of an LLM, no A/B significance testing (never declares a winner). The six featured stop-rule examples on the Sequences screen are picked by posting ID in the UI and their captions are static text, so they describe the bundled data rather than adapting to new data. The web package has no automated tests.
+No database (in-memory, computed at startup), a fixed "as of" day (latest event, day 4), deterministic email templates instead of an LLM, no A/B significance testing (never declares a winner). The six featured stop-rule examples on the Follow-ups screen are picked by posting ID in the UI and their captions are static text, so they describe the bundled data rather than adapting to new data. Licensed-role detection matches "license" in the title or skills only, so a licence mentioned only in the notes would be missed. The web package has no automated tests.
 
 ## Real integrations
 
@@ -56,11 +62,11 @@ No database (in-memory, computed at startup), a fixed "as of" day (latest event,
 ## Risks
 
 - **Technical: suppression races** between the sending platform and this system (a reply or unsubscribe arriving just before a scheduled send). Mitigation: check suppression right before each send, use idempotent events, and make the sender the source of truth.
-- **Commercial: targeting and promise risk.** 3 of 4 positive replies came from leads we cannot serve, and one candidate would be pitched to several companies. Mitigation: verify eligibility before outreach, plus candidate reservation and consent.
+- **Commercial: targeting and promise risk.** 3 of 4 positive replies came from jobs we cannot serve, and one candidate would be pitched to several companies. Mitigation: verify eligibility before outreach, plus candidate reservation and consent. Each of the five verified candidates is currently proposed to three jobs.
 
 ## What I'd do next with more time
 
-- Postgres persistence and a human verification workflow (approve/reject needs-verification leads, with rescoring).
+- Postgres persistence and a human verification workflow (approve/reject needs-verification jobs, with rescoring).
 - An interactive "simulate as of day N" slider.
 - A dedicated import/audit log page.
 - Real Apollo and Finally Staff adapters behind the existing interfaces.
@@ -68,4 +74,4 @@ No database (in-memory, computed at startup), a fixed "as of" day (latest event,
 - End-to-end and component tests for the web app (Playwright).
 - Statistical significance testing for A/B once sample sizes allow.
 - Fuzzy skill and title matching with a reviewed synonym list.
-- Candidate reservation so one candidate isn't pitched to many leads.
+- Candidate reservation so one candidate isn't pitched to many jobs.
