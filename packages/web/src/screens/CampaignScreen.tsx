@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { CampaignScope, type CampaignMetrics, type CampaignReport } from '@hireintercept/core/campaign'
+import { CampaignScope, WarningType, type CampaignMetrics, type CampaignReport, type CampaignWarning } from '@hireintercept/core/campaign'
 import { roundedShare, sum } from '@hireintercept/core/math'
 import { Variant } from '@hireintercept/core/types'
 import { useApi } from '../api'
 import { ApiBoundary } from '../components/ApiBoundary'
-import { Badge, Tone } from '../components/Badge'
+import { Tone } from '../components/Badge'
 import { SegmentedControl } from '../components/Button'
 import { Callout } from '../components/Callout'
 import { Section } from '../components/Card'
@@ -17,6 +17,7 @@ import { SignalChip } from '../components/SignalChip'
 import { Stat, StatGrid } from '../components/Stat'
 import { DataContext } from './DataContext'
 import { PostingLinks } from './PostingLinks'
+import './CampaignScreen.css'
 import { BulletList, Text, TextTone, TextVariant } from '../components/Text'
 
 interface MetricRow {
@@ -24,6 +25,9 @@ interface MetricRow {
   label: string
   read: (metrics: CampaignMetrics) => string | number
 }
+
+const VARIANT_A_LABEL = 'A · candidate-first'
+const VARIANT_B_LABEL = 'B · speed-first'
 
 const SCOPE_LABELS: Record<CampaignScope, string> = {
   [CampaignScope.All]: 'All events',
@@ -55,6 +59,18 @@ const METRIC_ROWS: MetricRow[] = [
   { group: 'Negative signals', label: 'Unsubscribes', read: (metrics) => metrics.unsubscribes },
 ]
 
+const BROKEN_RULE_WARNINGS = new Set([WarningType.SendToIneligible, WarningType.FollowUpToIneligible])
+
+const WARNING_COLUMNS: Column<CampaignWarning>[] = [
+  {
+    id: 'issue',
+    header: 'Issue',
+    render: (warning) => <Text as="span" tone={BROKEN_RULE_WARNINGS.has(warning.type) ? TextTone.Bad : TextTone.Default}>{warning.message}</Text>,
+  },
+  { id: 'count', header: 'Jobs', width: '5rem', align: ColumnAlign.End, render: (warning) => <Text as="span" strong>{warning.postingIds.length}</Text> },
+  { id: 'jobs', header: 'Affected jobs', render: (warning) => <Text as="span" variant={TextVariant.Small} tone={TextTone.Soft}><PostingLinks postingIds={warning.postingIds} /></Text> },
+]
+
 const isEven = (row: MetricRow, first: CampaignMetrics, second: CampaignMetrics) => row.read(first) === row.read(second)
 
 function DifferenceCell({ row, first, second }: { row: MetricRow; first: CampaignMetrics; second: CampaignMetrics }) {
@@ -76,8 +92,8 @@ function CampaignBody({ report, scope, onScopeChange }: { report: CampaignReport
   )
   const columns: Column<MetricRow>[] = [
     { id: 'metric', header: 'Metric', render: (row) => row.label },
-    { id: 'a', header: 'A · candidate-first', align: ColumnAlign.End, render: (row) => valueCell(row, metricsA) },
-    { id: 'b', header: 'B · speed-first', align: ColumnAlign.End, render: (row) => valueCell(row, metricsB) },
+    { id: 'a', header: VARIANT_A_LABEL, align: ColumnAlign.End, render: (row) => valueCell(row, metricsA) },
+    { id: 'b', header: VARIANT_B_LABEL, align: ColumnAlign.End, render: (row) => valueCell(row, metricsB) },
     { id: 'overall', header: 'Overall', align: ColumnAlign.End, render: (row) => row.read(overall) },
     { id: 'difference', header: 'Difference', align: ColumnAlign.End, render: (row) => <DifferenceCell row={row} first={metricsA} second={metricsB} /> },
   ]
@@ -93,6 +109,8 @@ function CampaignBody({ report, scope, onScopeChange }: { report: CampaignReport
   const funnelAside = widest
     ? `Biggest gap: ${widest.label} (A ${widest.firstConversion}% vs B ${widest.secondConversion}%)`
     : 'A and B convert alike at every stage'
+  const warningsByCount = [...report.warnings].sort((left, right) => right.postingIds.length - left.postingIds.length)
+  const affectedJobCount = new Set(report.warnings.flatMap((warning) => warning.postingIds)).size
   const splitOf = (read: (metrics: CampaignMetrics) => number) => ({ first: read(metricsA), second: read(metricsB) })
   return (
     <Stack gap={Gap.Loose}>
@@ -100,6 +118,12 @@ function CampaignBody({ report, scope, onScopeChange }: { report: CampaignReport
         <Text variant={TextVariant.Heading}>{report.insight ?? report.sampleSize.message}</Text>
         <Text variant={TextVariant.Small}>{report.sampleSize.message} ({report.sampleSize.contactsPerArm[Variant.A]} contacts in A, {report.sampleSize.contactsPerArm[Variant.B]} in B).</Text>
       </Callout>
+
+      <div className="variant-legend">
+        <span><i data-side="first" aria-hidden="true" />{VARIANT_A_LABEL} email</span>
+        <span><i data-side="second" aria-hidden="true" />{VARIANT_B_LABEL} email</span>
+        <span className="variant-legend__hint">The small A and B figures on each tile split its total by variant</span>
+      </div>
 
       <StatGrid>
         <Stat label="Messages sent" value={overall.messagesSent} hint="Both variants combined" split={splitOf((metrics) => metrics.messagesSent)} tone={Tone.Info} />
@@ -128,10 +152,10 @@ function CampaignBody({ report, scope, onScopeChange }: { report: CampaignReport
         aside={funnelAside}
       >
         <Stack>
-          <DualFunnel firstLabel="A · candidate-first" secondLabel="B · speed-first" stages={funnelStages} />
+          <DualFunnel firstLabel={VARIANT_A_LABEL} secondLabel={VARIANT_B_LABEL} stages={funnelStages} />
           <Cluster gap={Gap.Tight}>
             <Text variant={TextVariant.Small} tone={TextTone.Muted} strong>Negative signals</Text>
-            <Text variant={TextVariant.Small} tone={TextTone.Muted}>contacts per variant · blue is A, grey is B</Text>
+            <Text variant={TextVariant.Small} tone={TextTone.Muted}>events per variant · blue is A, grey is B</Text>
             {NEGATIVE_SIGNALS.map((signal) => (
               <SignalChip key={signal.label} label={signal.label} first={signal.read(metricsA)} second={signal.read(metricsB)} />
             ))}
@@ -147,30 +171,29 @@ function CampaignBody({ report, scope, onScopeChange }: { report: CampaignReport
       </Section>
 
       <Section
-        title="Data-integrity warnings"
-        description="Issues in the sample data that could mislead the results. Click a posting ID to open that lead."
-        aside={report.warnings.length === 0 ? 'Nothing to flag' : `${report.warnings.length} to review`}
+        title="Data quality"
+        description="Problems in the sample data that could skew the numbers above."
+        aside={report.warnings.length === 0 ? 'Nothing to flag' : `${affectedJobCount} jobs affected · ${report.warnings.length} issues`}
       >
-        {report.warnings.length === 0 ? <Text>Nothing to flag.</Text> : (
-          <Stack>
-            {report.warnings.map((warning) => (
-              <Cluster key={warning.type} gap={Gap.Tight}>
-                <Badge tone={Tone.Bad}>{warning.message}</Badge>
-                <Text variant={TextVariant.Small} tone={TextTone.Soft}><PostingLinks postingIds={warning.postingIds} /></Text>
-              </Cluster>
-            ))}
+        <Stack>
+          {report.warnings.length === 0 ? (
+            <Text>Nothing to flag.</Text>
+          ) : (
+            <DataTable columns={WARNING_COLUMNS} rows={warningsByCount} getRowKey={(warning) => warning.type} dense minWidth="30rem" />
+          )}
+          <Stack gap={Gap.Tight}>
+            <Text variant={TextVariant.Small} tone={TextTone.Muted} strong>How to read these numbers</Text>
+            <Text variant={TextVariant.Small} tone={TextTone.Muted}><BulletList items={report.notes} /></Text>
           </Stack>
-        )}
+        </Stack>
       </Section>
-
-      <Section title="Notes"><BulletList items={report.notes} /></Section>
     </Stack>
   )
 }
 
 const SCOPE_NOTES: Record<CampaignScope, string> = {
-  [CampaignScope.All]: 'Counts every recorded event, including roles we cannot serve.',
-  [CampaignScope.Eligible]: 'Counts only events on roles eligible for overseas placement.',
+  [CampaignScope.All]: 'Counts every recorded event, including jobs we cannot serve.',
+  [CampaignScope.Eligible]: 'Counts only events on jobs eligible for overseas placement.',
 }
 
 export function CampaignScreen() {
