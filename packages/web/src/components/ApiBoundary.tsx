@@ -5,6 +5,7 @@ import { Callout } from './Callout'
 import { Cluster } from './Layout'
 import { Tone } from './Badge'
 import { Skeleton } from './Skeleton'
+import './ApiBoundary.css'
 
 interface ApiBoundaryProps<Data> {
   state: ApiState<Data>
@@ -23,5 +24,5 @@ export function ApiBoundary<Data>({ state, children }: ApiBoundaryProps<Data>) {
     )
   }
   if (!state.data) return <Skeleton />
-  return <>{children(state.data)}</>
+  return <div className="ui-boundary" data-refreshing={state.loading}>{children(state.data)}</div>
 }

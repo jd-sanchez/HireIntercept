@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { AppShell, type NavItem } from './components/AppShell'
+import { LeadProvider } from './screens/LeadProvider'
 import { CampaignScreen } from './screens/CampaignScreen'
 import { OpportunitiesScreen } from './screens/OpportunitiesScreen'
 import { SequencesScreen } from './screens/SequencesScreen'
@@ -23,10 +24,14 @@ const NAV_ITEMS: NavItem<Screen>[] = [
 export function App() {
   const [screen, setScreen] = useState(Screen.Opportunities)
   return (
+    <LeadProvider>
     <AppShell items={NAV_ITEMS} activeId={screen} onNavigate={setScreen}>
-      {screen === Screen.Opportunities && <OpportunitiesScreen />}
-      {screen === Screen.Campaign && <CampaignScreen />}
-      {screen === Screen.Sequences && <SequencesScreen />}
+      <div key={screen} className="ui-enter">
+        {screen === Screen.Opportunities && <OpportunitiesScreen />}
+        {screen === Screen.Campaign && <CampaignScreen />}
+        {screen === Screen.Sequences && <SequencesScreen />}
+      </div>
     </AppShell>
+    </LeadProvider>
   )
 }

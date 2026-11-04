@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { CampaignScope, type CampaignMetrics, type CampaignReport } from '@hireintercept/core/campaign'
-import { roundedShare } from '@hireintercept/core/math'
+import { roundedShare, sum } from '@hireintercept/core/math'
 import { Variant } from '@hireintercept/core/types'
 import { useApi } from '../api'
 import { ApiBoundary } from '../components/ApiBoundary'
@@ -9,12 +8,19 @@ import { Badge, Tone } from '../components/Badge'
 import { SegmentedControl } from '../components/Button'
 import { Callout } from '../components/Callout'
 import { Section } from '../components/Card'
-import { DataTable, type Column } from '../components/DataTable'
+import { analyzeDualFunnel, DualFunnel, type DualFunnelStage } from '../components/DualFunnel'
+import { ColumnAlign, DataTable, type Column } from '../components/DataTable'
 import { Cluster, Gap, Spread, Stack } from '../components/Layout'
+import { DifferenceChip } from '../components/DifferenceChip'
+import { StickyBar } from '../components/StickyBar'
+import { SignalChip } from '../components/SignalChip'
 import { Stat, StatGrid } from '../components/Stat'
+import { DataContext } from './DataContext'
+import { PostingLinks } from './PostingLinks'
 import { BulletList, Text, TextTone, TextVariant } from '../components/Text'
 
 interface MetricRow {
+  group: string
   label: string
   read: (metrics: CampaignMetrics) => string | number
 }
@@ -24,87 +30,133 @@ const SCOPE_LABELS: Record<CampaignScope, string> = {
   [CampaignScope.Eligible]: 'Eligible only',
 }
 
-const METRIC_ROWS: MetricRow[] = [
-  { label: 'Messages sent', read: (metrics) => metrics.messagesSent },
-  { label: 'Unique contacts', read: (metrics) => metrics.uniqueContacts },
-  { label: 'Delivered', read: (metrics) => metrics.delivered },
-  { label: 'Unique opens', read: (metrics) => metrics.uniqueOpens },
-  { label: 'Raw opens', read: (metrics) => metrics.rawOpens },
-  {
-    label: 'Open rate (unique opens / delivered)',
-    read: (metrics) => (metrics.delivered === 0 ? '—' : `≈ ${roundedShare(metrics.uniqueOpens, metrics.delivered, 100)}% (approximate)`),
-  },
-  { label: 'Bounces', read: (metrics) => metrics.bounces },
-  { label: 'Positive replies', read: (metrics) => metrics.positiveReplies },
+const rate = (count: number, total: number) => (total === 0 ? 0 : roundedShare(count, total, 100))
+
+const NEGATIVE_SIGNALS: { label: string; read: (metrics: CampaignMetrics) => number }[] = [
   { label: 'Negative replies', read: (metrics) => metrics.negativeReplies },
+  { label: 'Bounces', read: (metrics) => metrics.bounces },
   { label: 'Unsubscribes', read: (metrics) => metrics.unsubscribes },
-  { label: 'Meetings booked', read: (metrics) => metrics.meetingsBooked },
-  { label: 'Clients won', read: (metrics) => metrics.clientsWon },
 ]
 
-function Funnel({ metrics }: { metrics: CampaignMetrics }) {
-  const stages = [
-    { stage: 'Sent', count: metrics.messagesSent },
-    { stage: 'Delivered', count: metrics.delivered },
-    { stage: 'Unique opens (≈)', count: metrics.uniqueOpens },
-    { stage: 'Positive replies', count: metrics.positiveReplies },
-    { stage: 'Meetings booked', count: metrics.meetingsBooked },
-    { stage: 'Clients won', count: metrics.clientsWon },
-  ]
-  return (
-    <div style={{ height: '18rem' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={stages} layout="vertical" margin={{ left: 24, right: 32 }}>
-          <CartesianGrid horizontal={false} stroke="var(--color-line)" />
-          <XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: 'var(--color-ink-muted)', fontSize: 12 }} />
-          <YAxis type="category" dataKey="stage" width={130} axisLine={false} tickLine={false} tick={{ fill: 'var(--color-ink-soft)', fontSize: 13 }} />
-          <Bar dataKey="count" fill="var(--color-accent)" radius={[0, 4, 4, 0]} barSize={18}>
-            <LabelList dataKey="count" position="right" fill="var(--color-ink)" fontSize={13} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  )
+const openRate = (metrics: CampaignMetrics) => (metrics.delivered === 0 ? '—' : `≈ ${roundedShare(metrics.uniqueOpens, metrics.delivered, 100)}%`)
+
+const METRIC_ROWS: MetricRow[] = [
+  { group: 'Reach', label: 'Messages sent', read: (metrics) => metrics.messagesSent },
+  { group: 'Reach', label: 'Unique contacts', read: (metrics) => metrics.uniqueContacts },
+  { group: 'Reach', label: 'Delivered', read: (metrics) => metrics.delivered },
+  { group: 'Engagement', label: 'Unique opens', read: (metrics) => metrics.uniqueOpens },
+  { group: 'Engagement', label: 'Raw opens', read: (metrics) => metrics.rawOpens },
+  { group: 'Engagement', label: 'Open rate ≈', read: openRate },
+  { group: 'Outcomes', label: 'Positive replies', read: (metrics) => metrics.positiveReplies },
+  { group: 'Outcomes', label: 'Meetings booked', read: (metrics) => metrics.meetingsBooked },
+  { group: 'Outcomes', label: 'Clients won', read: (metrics) => metrics.clientsWon },
+  { group: 'Negative signals', label: 'Negative replies', read: (metrics) => metrics.negativeReplies },
+  { group: 'Negative signals', label: 'Bounces', read: (metrics) => metrics.bounces },
+  { group: 'Negative signals', label: 'Unsubscribes', read: (metrics) => metrics.unsubscribes },
+]
+
+const isEven = (row: MetricRow, first: CampaignMetrics, second: CampaignMetrics) => row.read(first) === row.read(second)
+
+function DifferenceCell({ row, first, second }: { row: MetricRow; first: CampaignMetrics; second: CampaignMetrics }) {
+  const firstValue = row.read(first)
+  const secondValue = row.read(second)
+  const muted = (label: string) => <Text as="span" variant={TextVariant.Small} tone={TextTone.Muted}>{label}</Text>
+  if (typeof firstValue !== 'number' || typeof secondValue !== 'number') return firstValue === secondValue ? muted('Even') : null
+  const difference = sum([secondValue, -firstValue])
+  if (difference === 0) return muted('Even')
+  return <DifferenceChip side={difference > 0 ? 'second' : 'first'} amount={Math.abs(difference)} />
 }
 
-function CampaignBody({ report }: { report: CampaignReport }) {
+function CampaignBody({ report, scope, onScopeChange }: { report: CampaignReport; scope: CampaignScope; onScopeChange: (scope: CampaignScope) => void }) {
   const { overall } = report.metrics
-  const variants = [
-    { label: 'Variant A (candidate-first)', metrics: report.metrics[Variant.A] },
-    { label: 'Variant B (speed-first)', metrics: report.metrics[Variant.B] },
-    { label: 'Overall', metrics: overall },
-  ]
+  const metricsA = report.metrics[Variant.A]
+  const metricsB = report.metrics[Variant.B]
+  const valueCell = (row: MetricRow, metrics: CampaignMetrics) => (
+    <Text as="span" tone={isEven(row, metricsA, metricsB) ? TextTone.Muted : TextTone.Default} strong={!isEven(row, metricsA, metricsB)}>{row.read(metrics)}</Text>
+  )
   const columns: Column<MetricRow>[] = [
     { id: 'metric', header: 'Metric', render: (row) => row.label },
-    ...variants.map((variant) => ({ id: variant.label, header: variant.label, render: (row: MetricRow) => row.read(variant.metrics) })),
+    { id: 'a', header: 'A · candidate-first', align: ColumnAlign.End, render: (row) => valueCell(row, metricsA) },
+    { id: 'b', header: 'B · speed-first', align: ColumnAlign.End, render: (row) => valueCell(row, metricsB) },
+    { id: 'overall', header: 'Overall', align: ColumnAlign.End, render: (row) => row.read(overall) },
+    { id: 'difference', header: 'Difference', align: ColumnAlign.End, render: (row) => <DifferenceCell row={row} first={metricsA} second={metricsB} /> },
   ]
+  const funnelStages: DualFunnelStage[] = [
+    { label: 'Sent', read: (metrics: CampaignMetrics) => metrics.messagesSent },
+    { label: 'Delivered', read: (metrics: CampaignMetrics) => metrics.delivered },
+    { label: 'Unique opens (≈)', read: (metrics: CampaignMetrics) => metrics.uniqueOpens },
+    { label: 'Positive replies', read: (metrics: CampaignMetrics) => metrics.positiveReplies },
+    { label: 'Meetings booked', read: (metrics: CampaignMetrics) => metrics.meetingsBooked },
+    { label: 'Clients won', read: (metrics: CampaignMetrics) => metrics.clientsWon },
+  ].map(({ label, read }) => ({ label, first: read(metricsA), second: read(metricsB) }))
+  const { widest } = analyzeDualFunnel(funnelStages)
+  const funnelAside = widest
+    ? `Biggest gap: ${widest.label} (A ${widest.firstConversion}% vs B ${widest.secondConversion}%)`
+    : 'A and B convert alike at every stage'
+  const splitOf = (read: (metrics: CampaignMetrics) => number) => ({ first: read(metricsA), second: read(metricsB) })
   return (
     <Stack gap={Gap.Loose}>
       <Callout>
-        <Text>{report.sampleSize.message} ({report.sampleSize.contactsPerArm[Variant.A]} contacts in A, {report.sampleSize.contactsPerArm[Variant.B]} in B).</Text>
-        {report.insight && <Text strong>{report.insight}</Text>}
+        <Text variant={TextVariant.Heading}>{report.insight ?? report.sampleSize.message}</Text>
+        <Text variant={TextVariant.Small}>{report.sampleSize.message} ({report.sampleSize.contactsPerArm[Variant.A]} contacts in A, {report.sampleSize.contactsPerArm[Variant.B]} in B).</Text>
       </Callout>
 
       <StatGrid>
-        <Stat label="Messages sent" value={overall.messagesSent} tone={Tone.Info} />
-        <Stat label="Delivered" value={overall.delivered} />
-        <Stat label="Positive replies" value={overall.positiveReplies} tone={Tone.Good} />
-        <Stat label="Meetings booked" value={overall.meetingsBooked} tone={Tone.Good} />
+        <Stat label="Messages sent" value={overall.messagesSent} hint="Both variants combined" split={splitOf((metrics) => metrics.messagesSent)} tone={Tone.Info} />
+        <Stat label="Delivered" value={overall.delivered} hint={`${rate(overall.delivered, overall.messagesSent)}% delivery rate`} split={splitOf((metrics) => metrics.delivered)} sharePercent={rate(overall.delivered, overall.messagesSent)} tone={Tone.Info} />
+        <Stat label="Positive replies" value={overall.positiveReplies} hint={`${rate(overall.positiveReplies, overall.delivered)}% of delivered`} split={splitOf((metrics) => metrics.positiveReplies)} sharePercent={rate(overall.positiveReplies, overall.delivered)} tone={Tone.Good} />
+        <Stat label="Meetings booked" value={overall.meetingsBooked} hint={`${rate(overall.meetingsBooked, overall.positiveReplies)}% of positive replies`} split={splitOf((metrics) => metrics.meetingsBooked)} sharePercent={rate(overall.meetingsBooked, overall.positiveReplies)} tone={Tone.Good} />
       </StatGrid>
 
-      <Section title="Funnel (overall)"><Funnel metrics={overall} /></Section>
+      <StickyBar label="Event scope">
+        <Text variant={TextVariant.Small} tone={TextTone.Muted} strong>Showing</Text>
+        <SegmentedControl
+          label="Event scope"
+          value={scope}
+          options={Object.values(CampaignScope).map((entry) => ({ value: entry, label: SCOPE_LABELS[entry] }))}
+          onChange={onScopeChange}
+        />
+        <Text variant={TextVariant.Small} tone={TextTone.Soft}>{SCOPE_NOTES[scope]}</Text>
+        <span className="ui-sticky-bar__grow">
+          <Text as="span" variant={TextVariant.Small} tone={TextTone.Muted} strong>{overall.messagesSent} messages in scope</Text>
+        </span>
+      </StickyBar>
 
-      <Section title="A/B comparison">
-        <DataTable columns={columns} rows={METRIC_ROWS} getRowKey={(row) => row.label} minWidth="38rem" />
+      <Section
+        title="Outreach funnel by variant"
+        description={`How many contacts reach each stage, and the share kept from the previous stage. ${report.sampleSize.message}.`}
+        aside={funnelAside}
+      >
+        <Stack>
+          <DualFunnel firstLabel="A · candidate-first" secondLabel="B · speed-first" stages={funnelStages} />
+          <Cluster gap={Gap.Tight}>
+            <Text variant={TextVariant.Small} tone={TextTone.Muted} strong>Negative signals</Text>
+            <Text variant={TextVariant.Small} tone={TextTone.Muted}>contacts per variant · blue is A, grey is B</Text>
+            {NEGATIVE_SIGNALS.map((signal) => (
+              <SignalChip key={signal.label} label={signal.label} first={signal.read(metricsA)} second={signal.read(metricsB)} />
+            ))}
+          </Cluster>
+        </Stack>
       </Section>
 
-      <Section title="Data-integrity warnings">
-        {report.warnings.length === 0 ? <Text>No warnings.</Text> : (
+      <Section title="Every metric, side by side" description="Exact counts for A, B and overall, grouped by stage. Identical rows fade so the differences stand out.">
+        <Stack>
+          <DataTable columns={columns} rows={METRIC_ROWS} getRowKey={(row) => row.label} groupBy={(row) => row.group} dense minWidth="34rem" />
+          <Text variant={TextVariant.Small} tone={TextTone.Muted}>≈ Open rate is approximate: unique opens ÷ delivered. Opens are never inferred from replies. Bold values differ between A and B.</Text>
+        </Stack>
+      </Section>
+
+      <Section
+        title="Data-integrity warnings"
+        description="Issues in the sample data that could mislead the results. Click a posting ID to open that lead."
+        aside={report.warnings.length === 0 ? 'Nothing to flag' : `${report.warnings.length} to review`}
+      >
+        {report.warnings.length === 0 ? <Text>Nothing to flag.</Text> : (
           <Stack>
             {report.warnings.map((warning) => (
               <Cluster key={warning.type} gap={Gap.Tight}>
                 <Badge tone={Tone.Bad}>{warning.message}</Badge>
-                <Text variant={TextVariant.Small} tone={TextTone.Soft}>{warning.postingIds.join(', ')}</Text>
+                <Text variant={TextVariant.Small} tone={TextTone.Soft}><PostingLinks postingIds={warning.postingIds} /></Text>
               </Cluster>
             ))}
           </Stack>
@@ -116,24 +168,22 @@ function CampaignBody({ report }: { report: CampaignReport }) {
   )
 }
 
+const SCOPE_NOTES: Record<CampaignScope, string> = {
+  [CampaignScope.All]: 'Counts every recorded event, including roles we cannot serve.',
+  [CampaignScope.Eligible]: 'Counts only events on roles eligible for overseas placement.',
+}
+
 export function CampaignScreen() {
   const [scope, setScope] = useState(CampaignScope.All)
   const state = useApi<CampaignReport>(`/api/campaign?scope=${scope}`)
   return (
     <Stack gap={Gap.Loose}>
-      <Spread>
-        <Stack gap={Gap.Tight}>
-          <Text as="h1" variant={TextVariant.Title}>Campaign</Text>
-          <Text tone={TextTone.Soft}>Variant A against B, from send to closed client.</Text>
-        </Stack>
-        <SegmentedControl
-          label="Event scope"
-          value={scope}
-          options={Object.values(CampaignScope).map((entry) => ({ value: entry, label: SCOPE_LABELS[entry] }))}
-          onChange={setScope}
-        />
-      </Spread>
-      <ApiBoundary state={state}>{(report) => <CampaignBody report={report} />}</ApiBoundary>
+      <Stack gap={Gap.Tight}>
+        <Text as="h1" variant={TextVariant.Title}>Campaign</Text>
+        <Text tone={TextTone.Soft}>Variant A against B, from send to closed client.</Text>
+        <DataContext />
+      </Stack>
+      <ApiBoundary state={state}>{(report) => <CampaignBody report={report} scope={scope} onScopeChange={setScope} />}</ApiBoundary>
     </Stack>
   )
 }

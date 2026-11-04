@@ -10,3 +10,8 @@
 .ui-drawer__bar { display: flex; justify-content: flex-end; }
 @keyframes ui-fade { from { opacity: 0; } }
 @keyframes ui-slide { from { transform: translateX(2rem); opacity: 0; } }
+
+.ui-drawer__backdrop[data-closing='true'] { animation: ui-fade-out var(--duration-quick) var(--ease-out) forwards; }
+.ui-drawer__backdrop[data-closing='true'] .ui-drawer { animation: ui-slide-out var(--duration-quick) var(--ease-out) forwards; }
+@keyframes ui-fade-out { to { opacity: 0; } }
+@keyframes ui-slide-out { to { transform: translateX(1.5rem); opacity: 0; } }

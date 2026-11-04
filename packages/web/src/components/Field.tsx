@@ -35,3 +35,13 @@ interface NumberInputProps {
 export const NumberInput = ({ value, min, max, onChange }: NumberInputProps) => (
   <input className="ui-control ui-control--number" type="number" min={min} max={max} value={value} onChange={(event) => onChange(event.target.value)} />
 )
+
+interface SearchInputProps {
+  value: string
+  placeholder: string
+  onChange: (value: string) => void
+}
+
+export const SearchInput = ({ value, placeholder, onChange }: SearchInputProps) => (
+  <input className="ui-control ui-control--search" type="search" value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+)

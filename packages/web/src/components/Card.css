@@ -3,4 +3,11 @@
   box-shadow: var(--shadow-card); padding: var(--space-4); min-width: 0;
 }
 .ui-card[data-inset='true'] { box-shadow: none; background: var(--color-canvas); }
-.ui-card__title { margin-bottom: var(--space-3); }
+.ui-card__header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-2) var(--space-4); margin-bottom: var(--space-4); }
+.ui-card__title { display: grid; gap: 0.2rem; min-width: 0; }
+
+.ui-card__aside {
+  padding: 0.35rem 0.85rem; border-radius: 999px; font-size: 0.875rem; font-weight: 600; white-space: nowrap;
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface)); color: var(--color-accent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, var(--color-surface));
+}

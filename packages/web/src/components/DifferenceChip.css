@@ -1,0 +1,5 @@
+.ui-difference { display: inline-flex; align-items: center; gap: var(--space-2); padding: 0.15rem 0.6rem 0.15rem 0.2rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ui-difference[data-side='first'] { background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface)); color: var(--color-accent); }
+.ui-difference[data-side='second'] { background: color-mix(in srgb, var(--color-ink-muted) 14%, var(--color-surface)); color: var(--color-ink-soft); }
+.ui-difference__side { display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; font-size: 0.6875rem; color: var(--color-accent-ink); background: color-mix(in srgb, var(--color-accent) 70%, var(--color-surface)); }
+.ui-difference[data-side='second'] .ui-difference__side { background: color-mix(in srgb, var(--color-ink-muted) 65%, var(--color-surface)); }

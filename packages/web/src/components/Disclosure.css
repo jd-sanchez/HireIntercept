@@ -7,4 +7,7 @@
 .ui-disclosure__trigger[aria-expanded='true'] .ui-disclosure__chevron { transform: rotate(90deg); }
 .ui-disclosure__title { font-weight: 600; }
 .ui-disclosure__summary { color: var(--color-ink-muted); margin-left: auto; }
-.ui-disclosure__body { padding-bottom: var(--space-3); display: grid; gap: var(--space-4); font-size: 0.875rem; }
+.ui-disclosure__panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--duration-panel) var(--ease-out); }
+.ui-disclosure__panel[data-open='true'] { grid-template-rows: 1fr; }
+.ui-disclosure__body { overflow: hidden; min-height: 0; display: grid; gap: var(--space-4); font-size: 0.875rem; }
+.ui-disclosure__panel[data-open='true'] .ui-disclosure__body { padding-bottom: var(--space-3); }

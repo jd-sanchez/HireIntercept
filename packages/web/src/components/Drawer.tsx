@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Button } from './Button'
 import './Drawer.css'
 
@@ -8,19 +8,31 @@ interface DrawerProps {
   children: ReactNode
 }
 
+const CLOSE_DELAY_MS = 140
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
 export function Drawer({ label, onClose, children }: DrawerProps) {
   const panelRef = useRef<HTMLElement>(null)
+  const closeTimer = useRef<number>(undefined)
+  const [closing, setClosing] = useState(false)
+
+  const requestClose = () => {
+    if (closing) return
+    setClosing(true)
+    closeTimer.current = window.setTimeout(onClose, CLOSE_DELAY_MS)
+  }
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
     panelRef.current?.focus()
-    return () => previouslyFocused?.focus()
+    return () => {
+      window.clearTimeout(closeTimer.current)
+      previouslyFocused?.focus()
+    }
   }, [])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape') return onClose()
+    if (event.key === 'Escape') return requestClose()
     if (event.key !== 'Tab' || !panelRef.current) return
     const focusable = [...panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)]
     const first = focusable.at(0)
@@ -34,7 +46,7 @@ export function Drawer({ label, onClose, children }: DrawerProps) {
   }
 
   return (
-    <div className="ui-drawer__backdrop" onClick={onClose}>
+    <div className="ui-drawer__backdrop" data-closing={closing} onClick={requestClose}>
       <aside
         ref={panelRef}
         className="ui-drawer"
@@ -45,7 +57,7 @@ export function Drawer({ label, onClose, children }: DrawerProps) {
         onClick={(event) => event.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        <div className="ui-drawer__bar"><Button onClick={onClose}>Close</Button></div>
+        <div className="ui-drawer__bar"><Button onClick={requestClose}>Close</Button></div>
         {children}
       </aside>
     </div>

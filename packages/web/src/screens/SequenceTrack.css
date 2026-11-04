@@ -1,0 +1,56 @@
+.seq { display: grid; min-width: 0; }
+.seq-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); font-size: 0.8125rem; color: var(--color-ink-soft); padding-bottom: var(--space-3); }
+.seq-legend span { display: inline-flex; align-items: center; gap: var(--space-2); }
+.seq-row {
+  display: grid; grid-template-columns: minmax(10rem, 15rem) minmax(14rem, 1fr) minmax(10rem, 14rem); align-items: center; gap: var(--space-5);
+}
+.seq-row--header { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-ink-muted); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-line-strong); }
+.seq-item { display: grid; gap: var(--space-2); padding: var(--space-4) 0; border-bottom: 1px solid var(--color-line); }
+.seq-item:last-child { border-bottom: 0; }
+.seq-contact { display: grid; gap: 0.2rem; justify-items: start; min-width: 0; overflow-wrap: anywhere; }
+.seq-outcome { display: flex; gap: var(--space-3); justify-items: normal; align-items: stretch; }
+.seq-outcome__text { display: grid; gap: 0.1rem; min-width: 0; }
+.seq-rail { width: 3px; border-radius: 2px; flex: none; background: var(--color-ink-muted); }
+.seq-outcome[data-state='active'] .seq-rail { background: var(--color-good); }
+.seq-outcome[data-state='stopped'] .seq-rail { background: var(--color-warn); }
+.seq-outcome[data-state='suppressed'] .seq-rail { background: var(--color-bad); }
+.seq-outcome[data-state='held'] .seq-rail { background: var(--color-accent); }
+.seq-reason { font-size: 0.8125rem; font-weight: 600; }
+.seq-sub { font-size: 0.75rem; color: var(--color-ink-muted); }
+.seq-extra { font-size: 0.75rem; color: var(--color-ink-soft); }
+.seq-extra--bad { color: var(--color-bad-ink); font-weight: 500; }
+
+.seq-track { position: relative; height: 2.5rem; margin-inline: 1rem; }
+.seq-track--axis { height: 2.75rem; }
+.seq-tick { position: absolute; bottom: 0; transform: translateX(-50%); display: grid; justify-items: center; line-height: 1.2; white-space: nowrap; text-transform: none; letter-spacing: 0; }
+.seq-tick b { font-weight: 600; color: var(--color-ink-soft); }
+.seq-tick small { font-size: 0.6875rem; font-weight: 400; color: var(--color-ink-muted); }
+.seq-gridline { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--color-line-strong); opacity: 0.6; }
+.seq-legend__title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink); }
+
+.seq-line { position: absolute; left: 0; right: 0; top: 1.65rem; height: 0; border-top: 2px dashed var(--color-line-strong); transform: translateY(-50%); }
+.seq-line--done { right: auto; border-top: 2px solid var(--color-accent); border-radius: 1px; transition: width var(--duration-panel) var(--ease-out); }
+
+.seq-marker {
+  position: absolute; top: 1.65rem; width: 0.875rem; height: 0.875rem; transform: translate(-50%, -50%); border-radius: 50%; box-sizing: border-box;
+  background: var(--color-surface); border: 2px solid var(--color-line-strong);
+}
+.seq-marker[data-status='sent'] { background: var(--color-accent); border-color: var(--color-accent); }
+.seq-marker[data-status='pending'] { border-color: var(--color-accent); }
+.seq-marker[data-status='cancelled'] { width: 0.5rem; height: 0.5rem; border-width: 0; background: var(--color-line-strong); }
+.seq-marker[data-violation='true'] { background: var(--color-bad); border-color: var(--color-bad); box-shadow: 0 0 0 3px var(--color-bad-soft); }
+.seq-marker--legend { position: static; transform: none; display: inline-block; }
+
+.seq-flag {
+  position: absolute; top: 0; transform: translateX(-50%); padding: 0.05rem 0.5rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; font-style: normal; white-space: nowrap;
+  background: var(--color-warn-soft); color: var(--color-warn-ink);
+}
+.seq-flag[data-tone='bad'] { background: var(--color-bad-soft); color: var(--color-bad-ink); }
+.seq-flag[data-edge='true'] { transform: translateX(-0.4rem); }
+.seq-legend__stop[data-tone='bad'] { background: color-mix(in srgb, var(--color-bad) 70%, var(--color-surface)); }
+.seq-legend__stop { display: inline-block; width: 1.125rem; height: 0.625rem; border-radius: 999px; background: color-mix(in srgb, var(--color-warn) 75%, var(--color-surface)); }
+
+@media (max-width: 52rem) {
+  .seq-row { grid-template-columns: 1fr; gap: var(--space-3); }
+  .seq-row--header { display: none; }
+}

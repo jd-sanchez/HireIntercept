@@ -1,7 +1,18 @@
 .ui-callout {
-  display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); border-radius: var(--radius-card); font-size: 0.875rem;
-  border-left: 4px solid var(--color-warn); background: var(--color-warn-soft); color: var(--color-warn-ink);
+  --callout-color: var(--color-warn);
+  --callout-ink: var(--color-warn-ink);
+  display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--callout-color) 5%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--callout-color) 28%, var(--color-surface));
+  font-size: 0.875rem; color: var(--color-ink);
 }
-.ui-callout[data-tone='bad'] { border-left-color: var(--color-bad); background: var(--color-bad-soft); color: var(--color-bad-ink); }
-.ui-callout[data-tone='info'] { border-left-color: var(--color-accent); background: var(--color-info-soft); color: var(--color-info-ink); }
-.ui-callout[data-tone='good'] { border-left-color: var(--color-good); background: var(--color-good-soft); color: var(--color-good-ink); }
+.ui-callout[data-tone='bad'] { --callout-color: var(--color-bad); --callout-ink: var(--color-bad-ink); }
+.ui-callout[data-tone='info'], .ui-callout[data-tone='neutral'] { --callout-color: var(--color-accent); --callout-ink: var(--color-info-ink); }
+.ui-callout[data-tone='good'] { --callout-color: var(--color-good); --callout-ink: var(--color-good-ink); }
+.ui-callout__icon {
+  flex: none; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; margin-top: 0.05rem; border-radius: 50%;
+  background: color-mix(in srgb, var(--callout-color) 16%, var(--color-surface)); color: var(--callout-ink);
+}
+.ui-callout__icon svg { width: 0.95rem; height: 0.95rem; }
+.ui-callout__body { display: grid; gap: var(--space-1); min-width: 0; }
+.ui-callout__body > :nth-child(n + 2) { color: var(--color-ink-soft); }

@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Fragment, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
 import './DataTable.css'
 
 export enum ColumnAlign {
@@ -28,6 +28,9 @@ interface DataTableProps<Row> {
   initialSort?: InitialSort
   emptyMessage?: string
   minWidth?: string
+  maxHeight?: string
+  dense?: boolean
+  groupBy?: (row: Row) => string
 }
 
 const compareValues = (left: number | string, right: number | string): number =>
@@ -39,7 +42,7 @@ function activateOnKey(event: KeyboardEvent<HTMLElement>, action: () => void) {
   action()
 }
 
-export function DataTable<Row>({ columns, rows, getRowKey, onRowActivate, initialSort, emptyMessage = 'Nothing to show.', minWidth }: DataTableProps<Row>) {
+export function DataTable<Row>({ columns, rows, getRowKey, onRowActivate, initialSort, emptyMessage = 'Nothing to show.', minWidth, maxHeight, dense = false, groupBy }: DataTableProps<Row>) {
   const [sort, setSort] = useState<InitialSort | undefined>(initialSort)
 
   const sortedRows = useMemo(() => {
@@ -57,8 +60,8 @@ export function DataTable<Row>({ columns, rows, getRowKey, onRowActivate, initia
     sort?.columnId !== column.id ? 'none' : sort.descending ? 'descending' : 'ascending'
 
   return (
-    <div className="ui-table-scroll">
-      <table className="ui-table" style={minWidth ? { minWidth } : undefined}>
+    <div className="ui-table-scroll" style={maxHeight ? { maxHeight } : undefined}>
+      <table className="ui-table" data-dense={dense} style={minWidth ? { minWidth } : undefined}>
         <thead>
           <tr>
             {columns.map((column) => (
@@ -71,23 +74,33 @@ export function DataTable<Row>({ columns, rows, getRowKey, onRowActivate, initia
                 ) : column.header}
               </th>
             ))}
+            {onRowActivate && <th className="ui-table__chevron-head" aria-hidden="true" />}
           </tr>
         </thead>
         <tbody>
           {sortedRows.length === 0 && (
-            <tr><td colSpan={columns.length} className="ui-table__empty">{emptyMessage}</td></tr>
+            <tr><td colSpan={columns.length + 1} className="ui-table__empty">{emptyMessage}</td></tr>
           )}
-          {sortedRows.map((row) => (
-            <tr
-              key={getRowKey(row)}
-              data-interactive={Boolean(onRowActivate)}
-              tabIndex={onRowActivate ? 0 : undefined}
-              onClick={onRowActivate ? () => onRowActivate(row) : undefined}
-              onKeyDown={onRowActivate ? (event) => activateOnKey(event, () => onRowActivate(row)) : undefined}
-            >
-              {columns.map((column) => <td key={column.id} data-align={column.align}>{column.render(row)}</td>)}
-            </tr>
-          ))}
+          {sortedRows.map((row, position) => {
+            const group = groupBy?.(row)
+            const startsGroup = group !== undefined && (position === 0 || groupBy?.(sortedRows[position - 1] as Row) !== group)
+            return (
+              <Fragment key={getRowKey(row)}>
+                {startsGroup && (
+                  <tr className="ui-table__group"><td colSpan={columns.length + (onRowActivate ? 1 : 0)}>{group}</td></tr>
+                )}
+                <tr
+                  data-interactive={Boolean(onRowActivate)}
+                  tabIndex={onRowActivate ? 0 : undefined}
+                  onClick={onRowActivate ? () => onRowActivate(row) : undefined}
+                  onKeyDown={onRowActivate ? (event) => activateOnKey(event, () => onRowActivate(row)) : undefined}
+                >
+                  {columns.map((column) => <td key={column.id} data-align={column.align}>{column.render(row)}</td>)}
+                  {onRowActivate && <td className="ui-table__chevron" aria-hidden="true">›</td>}
+                </tr>
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
     </div>

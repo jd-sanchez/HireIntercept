@@ -1,0 +1,1 @@
+.score-cell { display: grid; grid-template-columns: 2rem minmax(3rem, 1fr); align-items: center; gap: var(--space-3); }

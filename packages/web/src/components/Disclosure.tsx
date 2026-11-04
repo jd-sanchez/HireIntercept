@@ -16,7 +16,9 @@ export function Disclosure({ title, summary, children }: DisclosureProps) {
         <span className="ui-disclosure__title">{title}</span>
         {summary && <span className="ui-disclosure__summary">{summary}</span>}
       </button>
-      {open && <div className="ui-disclosure__body">{children}</div>}
+      <div className="ui-disclosure__panel" data-open={open} inert={!open}>
+        <div className="ui-disclosure__body">{children}</div>
+      </div>
     </div>
   )
 }

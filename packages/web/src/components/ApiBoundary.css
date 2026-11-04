@@ -1,0 +1,2 @@
+.ui-boundary { animation: ui-enter var(--duration-panel) var(--ease-out) both; transition: opacity var(--duration-quick) var(--ease-out); }
+.ui-boundary[data-refreshing='true'] { opacity: 0.55; transition-duration: var(--duration-panel); transition-delay: 180ms; }

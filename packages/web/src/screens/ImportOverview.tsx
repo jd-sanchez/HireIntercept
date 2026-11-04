@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import { EligibilityStatus, type DuplicateGroupSummary, type ImportFileSummary, type ImportSummary } from '@hireintercept/core/types'
 import { useApi } from '../api'
 import { ApiBoundary } from '../components/ApiBoundary'
+import { roundedShare } from '@hireintercept/core/math'
 import { Badge, StatusBadge, Tone } from '../components/Badge'
 import { Card } from '../components/Card'
 import { DataTable, type Column } from '../components/DataTable'
@@ -13,6 +15,14 @@ const FILE_LABELS: { key: keyof ImportSummary['files']; label: string }[] = [
   { key: 'jobs', label: 'Jobs' },
   { key: 'candidates', label: 'Candidates' },
   { key: 'events', label: 'Events' },
+]
+
+const share = (count: number, total: number) => (total === 0 ? 0 : roundedShare(count, total, 100))
+
+const STATUS_TILES = [
+  { status: EligibilityStatus.Eligible, label: 'Eligible', tone: Tone.Good },
+  { status: EligibilityStatus.NeedsVerification, label: 'Needs verification', tone: Tone.Warn },
+  { status: EligibilityStatus.Ineligible, label: 'Ineligible', tone: Tone.Bad },
 ]
 
 type FieldConflict = DuplicateGroupSummary['fieldConflicts'][number]
@@ -55,16 +65,32 @@ function DuplicateGroup({ group }: { group: DuplicateGroupSummary }) {
   )
 }
 
-function ImportBody({ summary }: { summary: ImportSummary }) {
+interface ImportOverviewProps {
+  activeStatus: string
+  onSelectStatus: (status: string) => void
+  leadingTile?: ReactNode
+}
+
+function ImportBody({ summary, activeStatus, onSelectStatus, leadingTile }: ImportOverviewProps & { summary: ImportSummary }) {
   const { eligibilityCounts } = summary
   const invalidTotal = FILE_LABELS.reduce((total, { key }) => total + summary.files[key].invalidRows.length, 0)
   return (
     <Stack>
       <StatGrid>
-        <Stat label="Canonical opportunities" value={summary.canonicalOpportunities} hint="after dedup" tone={Tone.Info} />
-        <Stat label="Eligible" value={eligibilityCounts[EligibilityStatus.Eligible]} tone={Tone.Good} />
-        <Stat label="Needs verification" value={eligibilityCounts[EligibilityStatus.NeedsVerification]} tone={Tone.Warn} />
-        <Stat label="Ineligible" value={eligibilityCounts[EligibilityStatus.Ineligible]} tone={Tone.Bad} />
+        {leadingTile}
+        <Stat label="Canonical opportunities" value={summary.canonicalOpportunities} hint="After dedup · all roles" tone={Tone.Info} selected={activeStatus === ''} onSelect={() => onSelectStatus('')} />
+        {STATUS_TILES.map(({ status, label, tone }) => (
+          <Stat
+            key={status}
+            label={label}
+            value={eligibilityCounts[status]}
+            hint={`${share(eligibilityCounts[status], summary.canonicalOpportunities)}% of roles`}
+            sharePercent={share(eligibilityCounts[status], summary.canonicalOpportunities)}
+            tone={tone}
+            selected={activeStatus === status}
+            onSelect={() => onSelectStatus(activeStatus === status ? '' : status)}
+          />
+        ))}
       </StatGrid>
       <Disclosure
         title="Import & dedup details"
@@ -79,7 +105,7 @@ function ImportBody({ summary }: { summary: ImportSummary }) {
   )
 }
 
-export function ImportOverview() {
+export function ImportOverview({ activeStatus, onSelectStatus, leadingTile }: ImportOverviewProps) {
   const state = useApi<ImportSummary>('/api/import-summary')
-  return <ApiBoundary state={state}>{(summary) => <ImportBody summary={summary} />}</ApiBoundary>
+  return <ApiBoundary state={state}>{(summary) => <ImportBody summary={summary} activeStatus={activeStatus} onSelectStatus={onSelectStatus} leadingTile={leadingTile} />}</ApiBoundary>
 }

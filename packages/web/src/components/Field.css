@@ -12,3 +12,4 @@
   background-position: calc(100% - 1rem) 50%, calc(100% - 0.7rem) 50%; background-size: 0.3rem 0.3rem; background-repeat: no-repeat;
 }
 .ui-control--number { width: 6rem; }
+.ui-control--search { width: min(18rem, 100%); }
