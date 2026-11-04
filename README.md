@@ -19,9 +19,19 @@ npm workspaces, each package with its own `src/`:
 
 - `packages/core`: pure domain logic (import, eligibility, dedup, matching, scoring, drafts + claim linter, campaign metrics, sequence/stop-rule engine). No framework; the only I/O is the CSV loader. Pure so every rule is unit-testable and the same logic can sit behind real integrations unchanged.
 - `packages/server`: Fastify JSON API. Loads the CSVs at startup, computes everything once, serves from memory.
-- `packages/web`: React + Vite + Tailwind, TanStack Table, Recharts. Reads only the API. Core is shared through `@hireintercept/core/*` subpath exports (types and enums only, so no Node code reaches the browser).
+- `packages/web`: React + Vite. Reads only the API. A small custom component layer in `src/components/` (one CSS file per component); Tailwind is used only to define the design tokens (colour, type, radius) in `src/index.css`, and screens use no utility classes. Core is shared through `@hireintercept/core/*` subpath exports (`types`, `campaign`, `sequences`, `math`): types, enums and pure helpers only, so no Node code (the CSV loader) reaches the browser.
 
 Integration stubs (interfaces in `core/src/integrations.ts`): `ProspectSource` (CSV jobs), `CandidateProvider` (CSV candidates), `EventIngestor` (CSV events), `OutreachSender` (`NoopSender` records "would send"). These mark where Apollo and Finally Staff plug in.
+
+## Dashboard
+
+Three screens, all driven by the API:
+
+- **Opportunities:** a "Ready to contact" tile (eligible roles with a verified candidate), eligibility tiles that filter the table, a score distribution (click a row to set a minimum score), and the ranked table with industry, role, eligibility and minimum-score filters. A row opens the lead drawer: score breakdown with reasons, eligibility reasons, candidate matches (labelled synthetic), the two drafts, and merged-duplicate conflicts. Posting IDs anywhere in the app open the same drawer.
+- **Campaign:** headline insight and warnings, KPI tiles with A/B splits, a scope bar (all events or eligible-only), a dual funnel (A and B per stage, each showing the share kept from the previous stage), negative signals, a grouped metrics table with a difference column, and data-integrity warnings. "Biggest gap" is the stage with the widest A/B conversion difference, and only counts when both variants had at least 3 contacts at the previous stage, so 1-versus-0 noise is ignored. Open rate is always marked approximate; the sample-size message never declares a winner.
+- **Sequences:** state counts, step outcomes (sent, scheduled or cancelled at each scheduled step, with later steps marked not due as of the latest event), why sequences stopped (by stop rule), the six required stop-rule examples and every contact as a day-by-day timeline with a state and search filter, and the suppression list. Rule violations show the actual reason from the data (for example "Sent to an ineligible contact").
+
+The UI loads the Geist typeface from Google Fonts; offline it falls back to the system font. Nothing else leaves the machine.
 
 ## Data assumptions & decisions
 
@@ -36,7 +46,7 @@ Integration stubs (interfaces in `core/src/integrations.ts`): `ProspectSource` (
 
 ## Simplifications
 
-No database (in-memory, computed at startup), a fixed "as of" day (latest event, day 4), deterministic email templates instead of an LLM, no A/B significance testing (never declares a winner).
+No database (in-memory, computed at startup), a fixed "as of" day (latest event, day 4), deterministic email templates instead of an LLM, no A/B significance testing (never declares a winner). The six featured stop-rule examples on the Sequences screen are picked by posting ID in the UI and their captions are static text, so they describe the bundled data rather than adapting to new data. The web package has no automated tests.
 
 ## Real integrations
 
@@ -55,7 +65,7 @@ No database (in-memory, computed at startup), a fixed "as of" day (latest event,
 - A dedicated import/audit log page.
 - Real Apollo and Finally Staff adapters behind the existing interfaces.
 - Docker for one-command setup.
-- End-to-end tests (Playwright).
+- End-to-end and component tests for the web app (Playwright).
 - Statistical significance testing for A/B once sample sizes allow.
 - Fuzzy skill and title matching with a reviewed synonym list.
 - Candidate reservation so one candidate isn't pitched to many leads.
