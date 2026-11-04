@@ -2,7 +2,9 @@
 
 Local prototype that imports synthetic job postings, flags jobs for overseas remote placement, scores and matches them against a synthetic candidate pool, drafts (never sends) A/B outreach, and simulates campaign tracking with stop rules. Synthetic data only: `.example` domains are fictional, nothing is sent, no external calls, no LLM.
 
-Demo: https://drive.google.com/file/d/1a1ilfWJQ7xMWfFjs4R1WRC0Y4HWJPsJR/view?usp=sharing
+**Live demo:** https://jd-sanchez.github.io/HireIntercept/
+
+**Walkthrough video:** https://drive.google.com/file/d/1a1ilfWJQ7xMWfFjs4R1WRC0Y4HWJPsJR/view?usp=sharing
 
 ## Setup
 
@@ -63,8 +65,8 @@ No database (in-memory, computed at startup), a fixed "as of" day (latest event,
 
 ## Risks
 
-- **Technical: suppression races** between the sending platform and this system (a reply or unsubscribe arriving just before a scheduled send). Mitigation: check suppression right before each send, use idempotent events, and make the sender the source of truth.
-- **Commercial: targeting and promise risk.** 3 of 4 positive replies came from jobs we cannot serve, and one candidate would be pitched to several companies. Mitigation: verify eligibility before outreach, plus candidate reservation and consent. Each of the five verified candidates is currently proposed to three jobs.
+- **Technical: suppression races.** The sending platform and this system can get out of sync. For example, a reply or unsubscribe may arrive just before a scheduled send, and we still send. Fix: check suppression right before every send, give each event a unique id so repeats are ignored, and treat the sender as the source of truth.
+- **Commercial: targeting and promise risk.** 3 of 4 positive replies came from jobs we cannot serve. Also, one candidate could be pitched to several companies at once. Each of the five verified candidates is currently proposed to three jobs. Fix: check eligibility before any outreach, and reserve candidates and get their consent before offering them.
 
 ## What I'd do next with more time
 
