@@ -6,7 +6,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type KeyboardEvent } from 'react'
 import { EligibilityStatus, type FilterOptions, type OpportunityListItem } from '@hireintercept/core/types'
 import { useApi } from '../api'
 import { Badge, StatusBadge, Tone, tableCellClass, tableHeadClass } from '../components/ui'
@@ -14,7 +14,15 @@ import { ImportSection } from './ImportSection'
 import { LeadDrawer } from './LeadDrawer'
 
 const STATUS_OPTIONS = Object.values(EligibilityStatus)
-const fieldClass = 'rounded border border-slate-300 bg-white px-2 py-1 text-sm'
+const fieldClass = 'rounded border border-line-strong bg-surface px-2 py-1 text-sm'
+
+const SORT_ARIA: Record<string, 'ascending' | 'descending'> = { asc: 'ascending', desc: 'descending' }
+
+function activateOnKey(event: KeyboardEvent<HTMLElement>, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
 
 function BestCandidateCell({ item }: { item: OpportunityListItem }) {
   if (item.bestCandidate) {
@@ -28,7 +36,7 @@ function BestCandidateCell({ item }: { item: OpportunityListItem }) {
     )
   }
   const isIneligible = item.status === EligibilityStatus.Ineligible
-  return <span className="text-slate-500 italic">{isIneligible ? 'Not matched: ineligible' : 'No candidate in pool'}</span>
+  return <span className="text-ink-muted italic">{isIneligible ? 'Not matched: ineligible' : 'No candidate in pool'}</span>
 }
 
 export function OpportunitiesScreen() {
@@ -39,6 +47,14 @@ export function OpportunitiesScreen() {
   const [minScore, setMinScore] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'score', desc: true }])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const hasFilters = Boolean(industry || role || status || minScore)
+  const clearFilters = () => {
+    setIndustry('')
+    setRole('')
+    setStatus('')
+    setMinScore('')
+  }
 
   const query = new URLSearchParams({ industry, role, status, minScore }).toString()
   const opportunities = useApi<OpportunityListItem[]>(`/api/opportunities?${query}`)
@@ -55,10 +71,10 @@ export function OpportunitiesScreen() {
         accessorFn: (item) => item.score ?? -1,
         cell: ({ row }) =>
           row.original.score === null ? (
-            <span className="text-slate-500 italic">{row.original.notScoredReason}</span>
+            <span className="text-ink-muted italic">{row.original.notScoredReason}</span>
           ) : (
-            <span className="space-x-1 font-semibold">
-              <span>{row.original.score}</span>
+            <span className="flex items-center gap-2">
+              <span className="text-base font-semibold tabular-nums">{row.original.score}</span>
               {row.original.provisional && <Badge tone={Tone.Warn}>provisional</Badge>}
             </span>
           ),
@@ -107,16 +123,24 @@ export function OpportunitiesScreen() {
         <label className="flex flex-col gap-1">Min score
           <input className={`${fieldClass} w-24`} type="number" min={0} max={100} value={minScore} onChange={(event) => setMinScore(event.target.value)} />
         </label>
-        <span className="pb-1 text-slate-500">{opportunities.data?.length ?? 0} opportunities · click a header to sort, a row for detail</span>
+        {hasFilters && <button className="pb-1 text-accent underline-offset-2 hover:underline" onClick={clearFilters}>Clear filters</button>}
+        <span className="pb-1 text-ink-muted">{opportunities.data?.length ?? 0} opportunities · click a header to sort, a row for detail</span>
       </div>
-      {opportunities.error && <p className="rounded bg-rose-50 p-3 text-sm text-rose-800">Could not load data: {opportunities.error}</p>}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      {opportunities.error && <p className="rounded bg-bad-soft p-3 text-sm text-bad-ink">Could not load data: {opportunities.error}</p>}
+      <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
         <table className="w-full">
           <thead>
             {table.getHeaderGroups().map((group) => (
               <tr key={group.id}>
                 {group.headers.map((header) => (
-                  <th key={header.id} className={`${tableHeadClass} cursor-pointer select-none`} onClick={header.column.getToggleSortingHandler()}>
+                  <th
+                    key={header.id}
+                    className={`${tableHeadClass} cursor-pointer select-none`}
+                    tabIndex={0}
+                    aria-sort={SORT_ARIA[header.column.getIsSorted() as string] ?? 'none'}
+                    onClick={header.column.getToggleSortingHandler()}
+                    onKeyDown={(event) => activateOnKey(event, () => header.column.toggleSorting())}
+                  >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                     {{ asc: ' ▲', desc: ' ▼' }[header.column.getIsSorted() as string] ?? ''}
                   </th>
@@ -126,7 +150,13 @@ export function OpportunitiesScreen() {
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelectedId(row.original.id)}>
+              <tr
+                key={row.id}
+                className="cursor-pointer hover:bg-sunken focus-visible:bg-sunken"
+                tabIndex={0}
+                onClick={() => setSelectedId(row.original.id)}
+                onKeyDown={(event) => activateOnKey(event, () => setSelectedId(row.original.id))}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className={tableCellClass}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                 ))}

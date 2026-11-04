@@ -11,11 +11,11 @@ export enum Tone {
 }
 
 const TONE_CLASSES: Record<Tone, string> = {
-  [Tone.Neutral]: 'bg-slate-100 text-slate-700',
-  [Tone.Good]: 'bg-emerald-100 text-emerald-800',
-  [Tone.Warn]: 'bg-amber-100 text-amber-800',
-  [Tone.Bad]: 'bg-rose-100 text-rose-800',
-  [Tone.Info]: 'bg-sky-100 text-sky-800',
+  [Tone.Neutral]: 'bg-sunken text-ink-soft',
+  [Tone.Good]: 'bg-good-soft text-good-ink',
+  [Tone.Warn]: 'bg-warn-soft text-warn-ink',
+  [Tone.Bad]: 'bg-bad-soft text-bad-ink',
+  [Tone.Info]: 'bg-info-soft text-info-ink',
 }
 
 export function Badge({ tone = Tone.Neutral, children }: { tone?: Tone; children: ReactNode }) {
@@ -42,18 +42,18 @@ export const DRAFT_STATUS_LABEL: Record<DraftStatus, string> = {
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
+    <section className="rounded-card border border-line bg-surface shadow-card p-4">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-muted">{title}</h2>
       {children}
     </section>
   )
 }
 
 export function ApiBoundary<Data>({ state, children }: { state: ApiState<Data>; children: (data: Data) => ReactNode }) {
-  if (state.error) return <p className="rounded bg-rose-50 p-3 text-sm text-rose-800">Could not load data: {state.error}</p>
-  if (!state.data) return <p className="p-3 text-sm text-slate-500">Loading…</p>
+  if (state.error) return <p className="rounded bg-bad-soft p-3 text-sm text-bad-ink">Could not load data: {state.error}</p>
+  if (!state.data) return <p className="p-3 text-sm text-ink-muted">Loading…</p>
   return <>{children(state.data)}</>
 }
 
-export const tableCellClass = 'border-b border-slate-100 px-3 py-2 text-left align-top text-sm'
-export const tableHeadClass = 'border-b border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500'
+export const tableCellClass = 'border-b border-line px-3 py-2 text-left align-top text-sm'
+export const tableHeadClass = 'border-b border-line bg-sunken px-3 py-2 text-left text-xs font-semibold uppercase text-ink-muted'

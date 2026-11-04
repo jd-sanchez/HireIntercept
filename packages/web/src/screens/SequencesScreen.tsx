@@ -37,7 +37,7 @@ function TimelineRow({ contact }: { contact: ContactSequence }) {
     <tr>
       <td className={tableCellClass}>
         <div className="font-medium">{contact.contactKey}</div>
-        <div className="text-xs text-slate-500">{contact.postingIds.join(', ')}</div>
+        <div className="text-xs text-ink-muted">{contact.postingIds.join(', ')}</div>
       </td>
       <td className={tableCellClass}><Badge tone={STATE_TONE[contact.state]}>{contact.state}</Badge></td>
       {contact.steps.map((step) => (
@@ -77,7 +77,7 @@ function SequencesBody({ report }: { report: SequenceReport }) {
   return (
     <div className="space-y-4">
       <p className="text-lg font-semibold">As of day {report.asOfDay} (latest event)</p>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-ink-soft">
         Proposed schedule: {report.schedule.map((entry) => `step ${entry.step} on day ${entry.day}`).join(', ')}. A reply, bounce or
         unsubscribe stops every not-yet-sent step for the whole domain.
       </p>

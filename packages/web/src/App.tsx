@@ -14,13 +14,14 @@ export function App() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">HireIntercept <span className="text-sm font-normal text-slate-500">prototype · synthetic data only</span></h1>
-        <nav className="flex gap-1">
+        <h1 className="text-xl font-semibold tracking-tight">HireIntercept <span className="ml-2 text-sm font-normal text-ink-muted">prototype · synthetic data only</span></h1>
+        <nav className="flex gap-1 rounded-card bg-sunken p-1">
           {Object.values(Screen).map((entry) => (
             <button
               key={entry}
               onClick={() => setScreen(entry)}
-              className={`rounded px-3 py-1.5 text-sm font-medium ${entry === screen ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}`}
+              aria-current={entry === screen ? 'page' : undefined}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${entry === screen ? 'bg-surface text-ink shadow-card' : 'text-ink-soft hover:text-ink'}`}
             >
               {entry}
             </button>

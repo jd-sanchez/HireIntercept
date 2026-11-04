@@ -28,7 +28,7 @@ const COMPONENT_LABELS: Record<string, string> = {
 }
 
 function ScoreBreakdown({ opportunity }: { opportunity: Opportunity }) {
-  if (!opportunity.score) return <p className="text-sm italic text-slate-600">{opportunity.notScoredReason}</p>
+  if (!opportunity.score) return <p className="text-sm italic text-ink-soft">{opportunity.notScoredReason}</p>
   const entries: [string, ScoreComponent][] = Object.entries(opportunity.score.components)
   return (
     <div className="space-y-3 text-sm">
@@ -38,7 +38,7 @@ function ScoreBreakdown({ opportunity }: { opportunity: Opportunity }) {
       {entries.map(([key, component]) => (
         <div key={key}>
           <p className="font-medium">{COMPONENT_LABELS[key] ?? key}: {component.points} / {component.max}</p>
-          <ul className="list-disc pl-5 text-slate-600">
+          <ul className="list-disc pl-5 text-ink-soft">
             {component.reasons.map((reason) => <li key={reason}>{reason}</li>)}
           </ul>
         </div>
@@ -49,24 +49,24 @@ function ScoreBreakdown({ opportunity }: { opportunity: Opportunity }) {
 
 function MatchCard({ match }: { match: CandidateMatch }) {
   return (
-    <div className="rounded border border-slate-200 p-3 text-sm">
+    <div className="rounded border border-line p-3 text-sm">
       <p className="mb-1 flex flex-wrap items-center gap-2 font-medium">
         {match.candidateId} · {match.roleSpecialty}
         <Badge tone={match.verified ? Tone.Good : Tone.Warn}>{match.verified ? 'Verified match' : 'Not verified'}</Badge>
         <SyntheticBadge />
       </p>
       <p>Coverage {match.coveragePercent}% ({match.matchedSkills.length}/{match.requiredSkillCount} skills)</p>
-      <p className="text-emerald-800">Evidence: {match.matchedSkills.join(', ') || 'none'}</p>
+      <p className="text-good-ink">Evidence: {match.matchedSkills.join(', ') || 'none'}</p>
       <p>Availability: {match.availableNow ? 'available now' : 'not available now'} · U.S. hours: {match.usHoursAvailable ? 'yes' : 'no'}</p>
-      {match.gaps.length > 0 && <p className="text-rose-700">Gaps: {match.gaps.join('; ')}</p>}
-      {match.notes.length > 0 && <p className="text-amber-800">{match.notes.join('; ')}</p>}
+      {match.gaps.length > 0 && <p className="text-bad-ink">Gaps: {match.gaps.join('; ')}</p>}
+      {match.notes.length > 0 && <p className="text-warn-ink">{match.notes.join('; ')}</p>}
     </div>
   )
 }
 
 function DraftCard({ title, draft, missingReason }: { title: string; draft: EmailDraft | null; missingReason?: string }) {
   return (
-    <div className="rounded border border-slate-200 p-3 text-sm">
+    <div className="rounded border border-line p-3 text-sm">
       <p className="mb-2 flex flex-wrap items-center gap-2 font-medium">
         {title}
         {draft && (
@@ -81,7 +81,7 @@ function DraftCard({ title, draft, missingReason }: { title: string; draft: Emai
           <pre className="whitespace-pre-wrap font-sans">{draft.body}</pre>
         </>
       ) : (
-        <p className="italic text-slate-600">{missingReason}</p>
+        <p className="italic text-ink-soft">{missingReason}</p>
       )}
     </div>
   )
@@ -93,7 +93,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-bold">{display.company}: {display.title}</h2>
-        <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+        <p className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
           {display.industry} · {display.domain} <StatusBadge status={eligibility.status} />
           {opportunity.proposedToLeads > 1 && (
             <Badge tone={Tone.Warn}>Proposed to {opportunity.proposedToLeads} leads: {opportunity.bestMatch?.candidateId}</Badge>
@@ -106,10 +106,10 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
       <Section title="Eligibility">
         <ul className="list-disc pl-5 text-sm">
           {eligibility.reasons.map((reason) => (
-            <li key={reason.postingId}>{reason.postingId}: {reason.reason} <span className="text-slate-500">({reason.status})</span></li>
+            <li key={reason.postingId}>{reason.postingId}: {reason.reason} <span className="text-ink-muted">({reason.status})</span></li>
           ))}
         </ul>
-        {eligibility.confirmWorkingHours && <p className="mt-2 text-sm text-amber-800">Confirm working hours (U.S. hours requirement unknown)</p>}
+        {eligibility.confirmWorkingHours && <p className="mt-2 text-sm text-warn-ink">Confirm working hours (U.S. hours requirement unknown)</p>}
       </Section>
 
       <Section title="Candidate matches">
@@ -119,7 +119,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
             {opportunity.matches.length === 0 && <p className="text-sm italic">No candidate in pool for this role</p>}
           </div>
         ) : (
-          <p className="text-sm italic text-slate-600">{opportunity.matchNote}</p>
+          <p className="text-sm italic text-ink-soft">{opportunity.matchNote}</p>
         )}
       </Section>
 
@@ -130,7 +130,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
             <DraftCard title="Variant B · hiring-process / speed-first" draft={drafts.B} />
           </div>
         ) : (
-          <p className="text-sm italic text-slate-600">No drafts: ineligible role</p>
+          <p className="text-sm italic text-ink-soft">No drafts: ineligible role</p>
         )}
       </Section>
 
@@ -151,7 +151,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
             </table>
           </>
         ) : (
-          <p className="text-sm text-slate-600">No linked duplicates. Repeat postings are a signal of possible ongoing need, not proof of hiring difficulty.</p>
+          <p className="text-sm text-ink-soft">No linked duplicates. Repeat postings are a signal of possible ongoing need, not proof of hiring difficulty.</p>
         )}
       </Section>
     </div>
@@ -170,9 +170,9 @@ export function LeadDrawer({ opportunityId, onClose }: { opportunityId: string; 
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-10 flex justify-end bg-slate-900/40" onClick={onClose}>
-      <aside className="h-full w-full max-w-3xl overflow-y-auto bg-slate-50 p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <button onClick={onClose} className="mb-3 rounded bg-white px-3 py-1 text-sm ring-1 ring-slate-300">Close ✕</button>
+    <div className="fixed inset-0 z-10 flex justify-end bg-ink/40" onClick={onClose}>
+      <aside role="dialog" aria-modal="true" aria-label="Lead detail" className="h-full w-full max-w-3xl overflow-y-auto bg-sunken p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <button onClick={onClose} className="mb-3 rounded bg-surface px-3 py-1 text-sm ring-1 ring-line-strong">Close ✕</button>
         <ApiBoundary state={state}>{(opportunity) => <DrawerBody opportunity={opportunity} />}</ApiBoundary>
       </aside>
     </div>

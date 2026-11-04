@@ -45,7 +45,7 @@ function Funnel({ metrics }: { metrics: CampaignMetrics }) {
           <CartesianGrid horizontal={false} strokeDasharray="3 3" />
           <XAxis type="number" allowDecimals={false} />
           <YAxis type="category" dataKey="stage" width={130} />
-          <Bar dataKey="count" fill="var(--color-sky-600)">
+          <Bar dataKey="count" fill="var(--color-accent)">
             <LabelList dataKey="count" position="right" />
           </Bar>
         </BarChart>
@@ -62,10 +62,10 @@ function CampaignBody({ report }: { report: CampaignReport }) {
   ]
   return (
     <div className="space-y-4">
-      <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+      <div className="rounded border border-warn bg-warn-soft p-3 text-sm text-warn-ink">
         {report.sampleSize.message} ({report.sampleSize.contactsPerArm[Variant.A]} contacts in A, {report.sampleSize.contactsPerArm[Variant.B]} in B).
       </div>
-      {report.insight && <p className="rounded bg-rose-50 p-3 text-sm font-medium text-rose-900">{report.insight}</p>}
+      {report.insight && <p className="rounded bg-bad-soft p-3 text-sm font-medium text-bad-ink">{report.insight}</p>}
 
       <Section title="Funnel (overall)"><Funnel metrics={report.metrics.overall} /></Section>
 
@@ -94,7 +94,7 @@ function CampaignBody({ report }: { report: CampaignReport }) {
             {report.warnings.map((warning) => (
               <li key={warning.type}>
                 <Badge tone={Tone.Bad}>{warning.message}</Badge>{' '}
-                <span className="text-slate-700">{warning.postingIds.join(', ')}</span>
+                <span className="text-ink-soft">{warning.postingIds.join(', ')}</span>
               </li>
             ))}
           </ul>
@@ -102,7 +102,7 @@ function CampaignBody({ report }: { report: CampaignReport }) {
       </Section>
 
       <Section title="Notes">
-        <ul className="list-disc pl-5 text-sm text-slate-700">
+        <ul className="list-disc pl-5 text-sm text-ink-soft">
           {report.notes.map((note) => <li key={note}>{note}</li>)}
         </ul>
       </Section>
@@ -120,7 +120,7 @@ export function CampaignScreen() {
           <button
             key={entry}
             onClick={() => setScope(entry)}
-            className={`rounded px-3 py-1.5 text-sm ${entry === scope ? 'bg-sky-700 text-white' : 'bg-white ring-1 ring-slate-300'}`}
+            className={`rounded px-3 py-1.5 text-sm ${entry === scope ? 'bg-accent text-accent-ink' : 'bg-surface ring-1 ring-line-strong'}`}
           >
             {SCOPE_LABELS[entry]}
           </button>

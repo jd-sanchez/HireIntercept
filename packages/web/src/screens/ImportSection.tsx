@@ -13,7 +13,7 @@ function FileCounts({ label, file }: { label: string; file: ImportFileSummary })
     <li>
       <strong>{label}:</strong> {file.validRows} of {file.totalRows} rows valid
       {file.invalidRows.length > 0 && (
-        <ul className="ml-4 list-disc text-rose-700">
+        <ul className="ml-4 list-disc text-bad-ink">
           {file.invalidRows.map((row) => (
             <li key={row.rowNumber}>Row {row.rowNumber}: {row.reason}</li>
           ))}
@@ -26,7 +26,7 @@ function FileCounts({ label, file }: { label: string; file: ImportFileSummary })
 export function ImportSection() {
   const state = useApi<ImportSummary>('/api/import-summary')
   return (
-    <details className="mb-4 rounded-lg border border-slate-200 bg-white p-4">
+    <details className="mb-4 rounded-card border border-line bg-surface shadow-card p-4">
       <summary className="cursor-pointer text-sm font-semibold">Import &amp; dedup</summary>
       <ApiBoundary state={state}>
         {(summary) => (
@@ -41,12 +41,12 @@ export function ImportSection() {
               {Object.entries(summary.eligibilityCounts).map(([status, count]) => `${count} ${status.replace('_', ' ')}`).join(' · ')}
             </p>
             {summary.duplicateGroups.map((group) => (
-              <div key={group.canonicalId} className="rounded border border-slate-200 p-3">
+              <div key={group.canonicalId} className="rounded border border-line p-3">
                 <p className="font-medium">
                   {group.key.title} @ {group.key.domain}: {group.sourcePostingIds.join(' + ')} merged into {group.canonicalId}{' '}
                   <StatusBadge status={group.mergedStatus} />
                 </p>
-                <ul className="mt-1 list-disc pl-5 text-slate-600">
+                <ul className="mt-1 list-disc pl-5 text-ink-soft">
                   {group.mergeRules.map((rule) => <li key={rule}>{rule}</li>)}
                   <li>Display posting: {group.displayPostingId} · repost signal: {group.repostCount}</li>
                   {group.statusReasons.map((reason) => <li key={reason.postingId}>{reason.postingId}: {reason.reason} ({reason.status})</li>)}
