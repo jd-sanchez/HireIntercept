@@ -25,6 +25,18 @@ describe('GET /api/opportunities', () => {
     expect([...scores.slice(0, 18)].sort((left: number, right: number) => right - left)).toEqual(scores.slice(0, 18))
   })
 
+  it('flags verified matches with an unknown U.S.-hours requirement as confirm-hours', async () => {
+    const { body } = await get('/api/opportunities')
+    const confirmHours = body.filter((item: { status: string; bestCandidate: { verified: boolean; confirmHours: boolean } | null }) => item.status === 'eligible' && item.bestCandidate?.verified && item.bestCandidate.confirmHours)
+    expect(confirmHours.map((item: { id: string }) => item.id).sort()).toEqual(['JOB-001', 'JOB-016', 'JOB-022', 'JOB-028'])
+  })
+
+  it('explains why an unverified best candidate is unverified', async () => {
+    const { body } = await get('/api/opportunities')
+    const unavailableMatch = body.find((item: { id: string }) => item.id === 'JOB-005')
+    expect(unavailableMatch.bestCandidate).toMatchObject({ candidateId: 'C-005', verified: false, coveragePercent: 100, gaps: ['Not available now'] })
+  })
+
   it('filters by status, industry, role and minimum score', async () => {
     expect((await get('/api/opportunities?status=eligible')).body).toHaveLength(10)
     expect((await get('/api/opportunities?industry=accounting&role=Bookkeeper')).body).toHaveLength(3)
@@ -60,7 +72,7 @@ describe('GET /api/opportunities/:id', () => {
     expect(body.id).toBe('JOB-002')
     expect(body.sourcePostingIds).toEqual(['JOB-002', 'JOB-029'])
     expect(body.fieldConflicts.length).toBeGreaterThan(0)
-    expect(body.score.components.candidateFit.reasons.length).toBeGreaterThan(0)
+    expect(body.score.components.candidateFit.lines.length).toBeGreaterThan(0)
     expect(body.drafts.B).toBeTruthy()
     expect(body.matches[0].synthetic).toBe(true)
   })

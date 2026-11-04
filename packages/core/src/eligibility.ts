@@ -18,27 +18,44 @@ const SEVERITY: Record<EligibilityStatus, number> = {
 export const mostRestrictive = (statuses: EligibilityStatus[]): EligibilityStatus =>
   statuses.reduce((worst, status) => (SEVERITY[status] > SEVERITY[worst] ? status : worst), EligibilityStatus.Eligible)
 
-export function assessPosting(job: JobPosting): PostingEligibility {
-  const verdict = (status: EligibilityStatus, code: EligibilityCode, reason: string): PostingEligibility => ({
-    postingId: job.postingId,
-    status,
-    code,
-    reason,
-  })
+interface EligibilityRule {
+  code: EligibilityCode
+  status: EligibilityStatus
+  reason: string
+  applies: (job: JobPosting) => boolean
+}
 
-  if (job.remotePolicy === RemotePolicy.Onsite)
-    return verdict(EligibilityStatus.Ineligible, EligibilityCode.Onsite, 'On-site role')
-  if (job.remotePolicy === RemotePolicy.UsOnly)
-    return verdict(EligibilityStatus.Ineligible, EligibilityCode.UsOnly, 'U.S.-only role')
-  if (LICENSE_PATTERN.test(`${job.title} ${job.requiredSkills.join(' ')}`))
-    return verdict(EligibilityStatus.Ineligible, EligibilityCode.LicenseRequired, 'Requires local license')
-  if (job.remotePolicy === RemotePolicy.RemoteUnspecified)
-    return verdict(EligibilityStatus.NeedsVerification, EligibilityCode.RemoteUnspecified, 'Remote eligibility not stated')
-  if (RESTRICTION_PATTERN.test(job.notes))
-    return verdict(
-      EligibilityStatus.NeedsVerification,
-      EligibilityCode.PossibleLocalRestriction,
-      'Note mentions possible local restriction',
-    )
-  return verdict(EligibilityStatus.Eligible, EligibilityCode.GlobalRemote, 'Global remote role')
+// Order matters: the first matching rule decides the status; later matches are only recorded.
+const RULES: EligibilityRule[] = [
+  { code: EligibilityCode.Onsite, status: EligibilityStatus.Ineligible, reason: 'On-site role', applies: (job) => job.remotePolicy === RemotePolicy.Onsite },
+  { code: EligibilityCode.UsOnly, status: EligibilityStatus.Ineligible, reason: 'U.S.-only role', applies: (job) => job.remotePolicy === RemotePolicy.UsOnly },
+  {
+    code: EligibilityCode.LicenseRequired,
+    status: EligibilityStatus.Ineligible,
+    reason: 'Requires local license',
+    applies: (job) => LICENSE_PATTERN.test(`${job.title} ${job.requiredSkills.join(' ')}`),
+  },
+  {
+    code: EligibilityCode.RemoteUnspecified,
+    status: EligibilityStatus.NeedsVerification,
+    reason: 'Remote eligibility not stated',
+    applies: (job) => job.remotePolicy === RemotePolicy.RemoteUnspecified,
+  },
+  {
+    code: EligibilityCode.PossibleLocalRestriction,
+    status: EligibilityStatus.NeedsVerification,
+    reason: 'Note mentions possible local restriction',
+    applies: (job) => RESTRICTION_PATTERN.test(job.notes),
+  },
+]
+
+export function assessPosting(job: JobPosting): PostingEligibility {
+  const [decisive, ...alsoApplied] = RULES.filter((rule) => rule.applies(job))
+  return {
+    postingId: job.postingId,
+    status: decisive?.status ?? EligibilityStatus.Eligible,
+    code: decisive?.code ?? EligibilityCode.GlobalRemote,
+    reason: decisive?.reason ?? 'Global remote role',
+    alsoReasons: alsoApplied.map((rule) => rule.reason),
+  }
 }

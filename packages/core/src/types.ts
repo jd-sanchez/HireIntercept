@@ -91,6 +91,8 @@ export interface PostingEligibility {
   status: EligibilityStatus
   code: EligibilityCode
   reason: string
+  /** Other rules that also matched; the first match decides the status. */
+  alsoReasons: string[]
 }
 
 export interface FieldConflict {
@@ -115,10 +117,17 @@ export interface CandidateMatch {
   synthetic: true
 }
 
+export interface ScoreLine {
+  text: string
+  points: number
+}
+
 export interface ScoreComponent {
   points: number
   max: number
-  reasons: string[]
+  lines: ScoreLine[]
+  /** One caveat for the whole component, shown once instead of on every line. */
+  note: string | null
 }
 
 export interface PriorityScore {
@@ -195,6 +204,8 @@ export interface OpportunityListItem {
   bestCandidate: {
     candidateId: string
     verified: boolean
+    confirmHours: boolean
+    gaps: string[]
     coveragePercent: number
     proposedToLeads: number
   } | null

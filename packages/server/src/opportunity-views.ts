@@ -25,6 +25,8 @@ export const toListItem = (opportunity: Opportunity): OpportunityListItem => ({
     ? {
         candidateId: opportunity.bestMatch.candidateId,
         verified: opportunity.bestMatch.verified,
+        confirmHours: opportunity.bestMatch.usHoursCompatible === null,
+        gaps: opportunity.bestMatch.gaps,
         coveragePercent: opportunity.bestMatch.coveragePercent,
         proposedToLeads: opportunity.proposedToLeads,
       }

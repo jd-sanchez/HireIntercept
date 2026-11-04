@@ -57,8 +57,8 @@ describe('sample size, warnings, notes', () => {
   })
 
   it('computes the insight and the no-inferred-open note', () => {
-    expect(all.insight).toBe('3 of 4 positive replies came from ineligible or unverified leads')
+    expect(all.insight).toBe('3 of 4 positive replies came from ineligible or unverified jobs')
     expect(all.notes.some((note) => note.includes('JOB-012 replied with no recorded open'))).toBe(true)
-    expect(all.notes.some((note) => note.includes('contact_key is the posting domain'))).toBe(true)
+    expect(all.notes.some((note) => note.includes("a company's domain stands in for the contact"))).toBe(true)
   })
 })

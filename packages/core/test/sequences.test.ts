@@ -41,11 +41,11 @@ describe('sequence engine', () => {
     expect(entry?.scope).toBe(SuppressionScope.PermanentAllVariants)
   })
 
-  it('JOB-008: bounce stops the contact and marks the address invalid', () => {
+  it('JOB-008: bounce stops the contact and marks the contact undeliverable', () => {
     const contact = contactFor('JOB-008')
     expect(contact.state).toBe(ContactState.Stopped)
     expect(contact.stopReason).toBe(StopReason.Bounced)
-    expect(contact.addressInvalid).toBe(true)
+    expect(contact.undeliverable).toBe(true)
   })
 
   it('JOB-018: active with steps 1-2 sent and steps 3-4 pending', () => {

@@ -40,6 +40,16 @@ describe('eligibility', () => {
     expect(reasonOf('JOB-001')?.status).toBe(EligibilityStatus.Eligible)
   })
 
+  it('records other matching rules without changing the decision', () => {
+    const alsoOf = (postingId: string) =>
+      findOpportunity(postingId).eligibility.reasons.find((entry) => entry.postingId === postingId)?.alsoReasons
+    expect(alsoOf('JOB-009')).toEqual(['Requires local license'])
+    expect(alsoOf('JOB-019')).toEqual(['Requires local license'])
+    expect(alsoOf('JOB-030')).toEqual(['Note mentions possible local restriction'])
+    expect(alsoOf('JOB-003')).toEqual([])
+    expect(alsoOf('JOB-001')).toEqual([])
+  })
+
   it('does not treat HIPAA awareness as a license, and unknown hours does not block', () => {
     expect(findOpportunity('JOB-007').eligibility.reasons[0]?.code).toBe('US_ONLY')
     expect(findOpportunity('JOB-001').eligibility.status).toBe(EligibilityStatus.Eligible)

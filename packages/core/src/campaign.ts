@@ -130,7 +130,7 @@ function buildInsight(events: CampaignEvent[], opportunityByPosting: Map<string,
   const fromUnservable = positives.filter(
     (event) => opportunityByPosting.get(event.postingId)?.eligibility.status !== EligibilityStatus.Eligible,
   ).length
-  return `${fromUnservable} of ${positives.length} positive replies came from ineligible or unverified leads`
+  return `${fromUnservable} of ${positives.length} positive replies came from ineligible or unverified jobs`
 }
 
 function buildNotes(events: CampaignEvent[], unknownPostingIds: string[]): string[] {
@@ -139,7 +139,7 @@ function buildNotes(events: CampaignEvent[], unknownPostingIds: string[]): strin
     ...new Set(events.filter((event) => REPLY_EVENTS.has(event.eventType) && !opened.has(event.postingId)).map((event) => event.postingId)),
   ].sort()
   return [
-    'Contact identity: no email addresses in the data, so contact_key is the posting domain (one decision-maker per company).',
+    'Contact identity: no email addresses in the data, so a company\'s domain stands in for the contact (one decision-maker per company).',
     'Open rate is approximate: unique opens (distinct contact + step) divided by delivered.',
     ...repliedWithoutOpen.map((postingId) => `${postingId} replied with no recorded open; opens are not inferred from replies.`),
     ...(unknownPostingIds.length > 0 ? [`Events for unknown postings were ignored: ${unknownPostingIds.join(', ')}.`] : []),

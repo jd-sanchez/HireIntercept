@@ -84,7 +84,8 @@ describe('priority score', () => {
       expect(score?.total, id).toBeLessThanOrEqual(100)
       for (const component of Object.values(score?.components ?? {})) {
         expect(component.points).toBeLessThanOrEqual(component.max)
-        expect(component.reasons.length).toBeGreaterThan(0)
+        expect(component.lines.length).toBeGreaterThan(0)
+        expect(component.lines.reduce((total, line) => total + line.points, 0)).toBe(component.points)
       }
     }
   })
@@ -103,10 +104,8 @@ describe('priority score', () => {
     }
   })
 
-  it('attaches the demand caveat to every demand reason', () => {
-    for (const { score } of scored) {
-      for (const reason of score?.components.demandSignals.reasons ?? []) expect(reason).toContain(DEMAND_CAVEAT)
-    }
+  it('attaches the demand caveat to the demand component', () => {
+    for (const { score } of scored) expect(score?.components.demandSignals.note).toContain(DEMAND_CAVEAT)
   })
 
   it('computes a known score by hand (JOB-001: 25 + 35 + 0 + 11)', () => {
@@ -124,9 +123,9 @@ describe('priority score', () => {
 
   it('reports an empty candidate pool explicitly', () => {
     const result = analyzeOpportunities(jobsImport.records, [])
-    const reasons = result.find((opportunity) => opportunity.id === 'JOB-001')?.score?.components.candidateFit
-    expect(reasons?.points).toBe(0)
-    expect(reasons?.reasons).toEqual(['No candidate in pool for this role'])
+    const candidateFit = result.find((opportunity) => opportunity.id === 'JOB-001')?.score?.components.candidateFit
+    expect(candidateFit?.points).toBe(0)
+    expect(candidateFit?.lines).toEqual([{ text: 'No candidate in pool for this role', points: 0 }])
   })
 })
 

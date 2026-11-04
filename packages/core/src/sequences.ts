@@ -57,7 +57,7 @@ export interface ContactSequence {
   state: ContactState
   stopReason: StopReason | null
   stopDay: number | null
-  addressInvalid: boolean
+  undeliverable: boolean
   steps: SequenceStep[]
   violations: SequenceViolation[]
   meetingsBooked: number
@@ -143,7 +143,7 @@ function buildContactSequence(
     state,
     stopReason: isIneligible ? StopReason.IneligibleRole : ((reasonEvent && STOP_REASON_BY_EVENT.get(reasonEvent.eventType)) ?? null),
     stopDay: isIneligible ? null : (reasonEvent?.eventDay ?? null),
-    addressInvalid: sorted.some((event) => event.eventType === EventType.Bounced),
+    undeliverable: sorted.some((event) => event.eventType === EventType.Bounced),
     steps,
     violations,
     meetingsBooked: sorted.filter((event) => event.eventType === EventType.MeetingBooked).length,

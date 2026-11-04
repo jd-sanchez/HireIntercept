@@ -41,8 +41,8 @@ function buildImportSummary(dataset: Dataset): ImportSummary {
         fieldConflicts: opportunity.fieldConflicts,
         mergeRules: [
           'Eligibility: most restrictive status across all postings',
-          'Display fields: most recent posting (lowest posted_days_ago, ties by lowest posting id)',
-          'Repost signal: highest repost_count in the group',
+          'Display fields: most recent posting (fewest days since posted, ties by lowest posting ID)',
+          'Repost signal: highest repost count in the group',
         ],
       })),
   }
