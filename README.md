@@ -2,6 +2,8 @@
 
 Local prototype that imports synthetic job postings, flags jobs for overseas remote placement, scores and matches them against a synthetic candidate pool, drafts (never sends) A/B outreach, and simulates campaign tracking with stop rules. Synthetic data only: `.example` domains are fictional, nothing is sent, no external calls, no LLM.
 
+Demo: https://drive.google.com/file/d/1a1ilfWJQ7xMWfFjs4R1WRC0Y4HWJPsJR/view?usp=sharing
+
 ## Setup
 
 Node 20+.
