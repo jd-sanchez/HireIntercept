@@ -10,7 +10,7 @@
 .ui-button[data-variant='ghost'] { border-color: transparent; background: transparent; color: var(--color-accent); }
 .ui-button[data-variant='ghost']:hover { background: var(--color-sunken); }
 
-.ui-segmented { display: inline-flex; padding: var(--space-1); gap: var(--space-1); background: var(--color-sunken); border-radius: var(--radius-card); }
+.ui-segmented { display: inline-flex; width: fit-content; padding: var(--space-1); gap: var(--space-1); background: var(--color-sunken); border-radius: var(--radius-card); }
 .ui-segmented__option {
   font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: 0; background: transparent;
   color: var(--color-ink-soft); padding: 0.4rem 0.9rem; border-radius: var(--radius-control);

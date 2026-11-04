@@ -1,1 +1,5 @@
 .score-cell { display: grid; grid-template-columns: 2rem minmax(3rem, 1fr); align-items: center; gap: var(--space-3); }
+
+.job-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+@media (max-width: 64rem) { .job-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.filter-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4); }

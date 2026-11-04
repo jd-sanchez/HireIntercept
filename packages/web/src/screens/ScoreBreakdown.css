@@ -1,0 +1,5 @@
+.score-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.score-line { display: flex; justify-content: space-between; gap: var(--space-4); font-size: 0.875rem; }
+.score-line__points { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.score-line[data-zero='true'] { color: var(--color-ink-muted); }
+.score-line[data-zero='true'] .score-line__points { font-weight: 400; }

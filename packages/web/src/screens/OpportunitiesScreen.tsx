@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { EligibilityStatus, type FilterOptions, type OpportunityListItem } from '@hireintercept/core/types'
+import { EligibilityStatus, type FilterOptions, type ImportSummary, type OpportunityListItem } from '@hireintercept/core/types'
 import { useApi } from '../api'
 import { ApiBoundary } from '../components/ApiBoundary'
 import { StatusBadge, Tone } from '../components/Badge'
@@ -11,16 +11,28 @@ import { Histogram, type HistogramBucket } from '../components/Histogram'
 import { ScoreBar } from '../components/Score'
 import { Section } from '../components/Card'
 import { Stat } from '../components/Stat'
+import { roundedShare } from '@hireintercept/core/math'
 import { Text, TextTone, TextVariant } from '../components/Text'
-import { ImportOverview } from './ImportOverview'
+import { ImportDetails } from './ImportOverview'
 import { useLeads } from './LeadProvider'
 import { DataContext } from './DataContext'
 import './OpportunitiesScreen.css'
 
 const BUCKET_WIDTH = 10
-const READY_TILE = 'ready'
 
-const isReadyToContact = (item: OpportunityListItem) => item.status === EligibilityStatus.Eligible && item.bestCandidate?.verified === true
+enum QuickFilter {
+  Ready = 'ready',
+  ConfirmHours = 'confirm_hours',
+}
+
+const share = (count: number, total: number) => (total === 0 ? 0 : roundedShare(count, total, 100))
+
+const hasVerifiedCandidate = (item: OpportunityListItem) => item.status === EligibilityStatus.Eligible && item.bestCandidate?.verified === true
+
+const QUICK_FILTER_MATCHES: Record<QuickFilter, (item: OpportunityListItem) => boolean> = {
+  [QuickFilter.Ready]: (item) => hasVerifiedCandidate(item) && item.bestCandidate?.confirmHours === false,
+  [QuickFilter.ConfirmHours]: (item) => hasVerifiedCandidate(item) && item.bestCandidate?.confirmHours === true,
+}
 
 function buildScoreBuckets(items: OpportunityListItem[]): HistogramBucket[] {
   const itemsByLowerBound = items.reduce((groups, item) => {
@@ -45,9 +57,13 @@ function buildScoreBuckets(items: OpportunityListItem[]): HistogramBucket[] {
   })
 }
 
-const STATUS_OPTIONS = [
+const ELIGIBILITY_OPTIONS = [
   { value: '', label: 'All' },
-  ...Object.values(EligibilityStatus).map((entry) => ({ value: entry, label: entry.charAt(0).toUpperCase() + entry.slice(1).replace('_', ' ') })),
+  { value: QuickFilter.Ready, label: 'Ready to contact' },
+  { value: QuickFilter.ConfirmHours, label: 'Confirm hours first' },
+  { value: EligibilityStatus.Eligible, label: 'All eligible' },
+  { value: EligibilityStatus.NeedsVerification, label: 'Needs verification' },
+  { value: EligibilityStatus.Ineligible, label: 'Ineligible' },
 ]
 
 const toOptions = (entries: string[] | undefined) => [{ value: '', label: 'All' }, ...(entries ?? []).map((entry) => ({ value: entry, label: entry }))]
@@ -57,16 +73,17 @@ function BestCandidateCell({ item }: { item: OpportunityListItem }) {
     const isIneligible = item.status === EligibilityStatus.Ineligible
     return <Text variant={TextVariant.Small} tone={TextTone.Muted} italic>{isIneligible ? 'Not matched: ineligible' : 'No candidate in pool'}</Text>
   }
-  const { candidateId, verified, coveragePercent, proposedToLeads } = item.bestCandidate
+  const { candidateId, verified, confirmHours, gaps, coveragePercent, proposedToLeads } = item.bestCandidate
   return (
     <Stack gap={Gap.Tight}>
       <Cluster gap={Gap.Tight}>
         <Text strong>{candidateId}</Text>
         <Text as="span" variant={TextVariant.Small} tone={verified ? TextTone.Good : TextTone.Warn} strong>
-          {verified ? 'Verified' : `Unverified · ${coveragePercent}%`}
+          {verified ? (confirmHours ? 'Verified (need to confirm hours)' : 'Verified') : `Unverified (${gaps.join(', ')})`}
         </Text>
       </Cluster>
-      {proposedToLeads > 1 && <Text variant={TextVariant.Small} tone={TextTone.Muted}>Also proposed to {proposedToLeads - 1} other leads</Text>}
+      {!verified && <Text variant={TextVariant.Small} tone={TextTone.Muted}>{coveragePercent}% skill match</Text>}
+      {proposedToLeads > 1 && <Text variant={TextVariant.Small} tone={TextTone.Muted}>Also proposed to {proposedToLeads - 1} other jobs</Text>}
     </Stack>
   )
 }
@@ -82,7 +99,7 @@ function buildColumns(rankById: Map<string, number>): Column<OpportunityListItem
     },
     {
       id: 'lead',
-      header: 'Lead',
+      header: 'Job',
       sortValue: (item) => item.company,
       render: (item) => (
         <Stack gap={Gap.Tight}>
@@ -122,76 +139,94 @@ function rankByScore(items: OpportunityListItem[]): Map<string, number> {
 
 export function OpportunitiesScreen() {
   const filterOptions = useApi<FilterOptions>('/api/filters')
+  const importSummary = useApi<ImportSummary>('/api/import-summary')
   const [industry, setIndustry] = useState('')
   const [role, setRole] = useState('')
   const [status, setStatus] = useState('')
   const [minScore, setMinScore] = useState('')
-  const [readyOnly, setReadyOnly] = useState(false)
+  const [quickFilter, setQuickFilter] = useState<QuickFilter | null>(null)
   const { allOpportunities, openLead } = useLeads()
 
-  const activeFilterCount = [industry, role, status, minScore].filter(Boolean).length + (readyOnly ? 1 : 0)
+  const activeFilterCount = [industry, role, status, minScore].filter(Boolean).length + (quickFilter ? 1 : 0)
   const hasFilters = activeFilterCount > 0
   const selectStatusTile = (nextStatus: string) => {
-    setReadyOnly(false)
+    setQuickFilter(null)
     setStatus(nextStatus)
   }
-  const selectReadyTile = () => {
+  const toggleQuickFilter = (nextFilter: QuickFilter) => {
     setStatus('')
-    setReadyOnly(true)
+    setQuickFilter((current) => (current === nextFilter ? null : nextFilter))
+  }
+  const selectEligibility = (value: string) => {
+    const pickedQuickFilter = Object.values(QuickFilter).find((entry) => entry === value)
+    if (!pickedQuickFilter) return selectStatusTile(value)
+    setStatus('')
+    setQuickFilter(pickedQuickFilter)
   }
   const clearFilters = () => {
     setIndustry('')
     setRole('')
     setStatus('')
     setMinScore('')
-    setReadyOnly(false)
+    setQuickFilter(null)
   }
 
   const query = new URLSearchParams({ industry, role, status, minScore }).toString()
   const opportunities = useApi<OpportunityListItem[]>(`/api/opportunities?${query}`)
-  const visibleCount = readyOnly ? (opportunities.data ?? []).filter(isReadyToContact).length : (opportunities.data?.length ?? 0)
+  const visibleCount = quickFilter ? (opportunities.data ?? []).filter(QUICK_FILTER_MATCHES[quickFilter]).length : (opportunities.data?.length ?? 0)
   const industryOptions = useMemo(() => toOptions(filterOptions.data?.industries), [filterOptions.data])
   const roleOptions = useMemo(() => toOptions(filterOptions.data?.roles), [filterOptions.data])
 
-  const readyCount = (allOpportunities ?? []).filter(isReadyToContact).length
+  const readyCount = (allOpportunities ?? []).filter(QUICK_FILTER_MATCHES[QuickFilter.Ready]).length
+  const confirmHoursCount = (allOpportunities ?? []).filter(QUICK_FILTER_MATCHES[QuickFilter.ConfirmHours]).length
   const needsVerificationCount = (allOpportunities ?? []).filter((item) => item.status === EligibilityStatus.NeedsVerification).length
+  const ineligibleCount = (allOpportunities ?? []).filter((item) => item.status === EligibilityStatus.Ineligible).length
+  const selectStatus = (target: EligibilityStatus) => selectStatusTile(status === target ? '' : target)
+  const tiles = [
+    { label: 'Ready to contact', count: readyCount, note: 'verified candidate, hours known', tone: Tone.Good, selected: quickFilter === QuickFilter.Ready, onSelect: () => toggleQuickFilter(QuickFilter.Ready) },
+    { label: 'Confirm hours first', count: confirmHoursCount, note: 'verified candidate, hours not stated', tone: Tone.Info, selected: quickFilter === QuickFilter.ConfirmHours, onSelect: () => toggleQuickFilter(QuickFilter.ConfirmHours) },
+    { label: 'Needs verification', count: needsVerificationCount, note: 'eligibility unclear', tone: Tone.Warn, selected: status === EligibilityStatus.NeedsVerification, onSelect: () => selectStatus(EligibilityStatus.NeedsVerification) },
+    { label: 'Ineligible', count: ineligibleCount, note: 'U.S.-only or on-site', tone: Tone.Bad, selected: status === EligibilityStatus.Ineligible, onSelect: () => selectStatus(EligibilityStatus.Ineligible) },
+  ]
   const scoreBuckets = useMemo(() => buildScoreBuckets(allOpportunities ?? []), [allOpportunities])
   const peakBucket = scoreBuckets.reduce<HistogramBucket | undefined>((peak, bucket) => (!peak || bucket.count > peak.count ? bucket : peak), undefined)
   const headline = allOpportunities
-    ? `${readyCount} roles are ready to contact now; ${needsVerificationCount} need verification before any outreach.`
-    : 'Remote roles ranked by how well we can fill them.'
+    ? `${readyCount} jobs are ready to contact now; ${confirmHoursCount} more need working hours confirmed, and ${needsVerificationCount} need eligibility verified before any outreach.`
+    : 'Remote jobs ranked by how well we can fill them.'
 
   return (
     <Stack gap={Gap.Loose}>
-      <Stack gap={Gap.Tight}>
-        <Text as="h1" variant={TextVariant.Title}>Opportunities</Text>
-        <Text tone={TextTone.Soft}>{headline}</Text>
-        <DataContext />
-      </Stack>
+      <Spread>
+        <Stack gap={Gap.Tight}>
+          <Text as="h1" variant={TextVariant.Title}>Jobs</Text>
+          <Text tone={TextTone.Soft}>{headline}</Text>
+          <DataContext />
+        </Stack>
+        <ApiBoundary state={importSummary}>{(summary) => <ImportDetails summary={summary} />}</ApiBoundary>
+      </Spread>
 
-      <ImportOverview
-        activeStatus={readyOnly ? READY_TILE : status}
-        onSelectStatus={selectStatusTile}
-        leadingTile={
-          allOpportunities && (
+      {allOpportunities && (
+        <div className="job-tiles">
+          {tiles.map((tile) => (
             <Stat
-              featured
-              label="Ready to contact"
-              value={readyCount}
-              hint="Eligible roles with a verified candidate · click to show"
-              tone={Tone.Good}
-              selected={readyOnly}
-              onSelect={() => (readyOnly ? setReadyOnly(false) : selectReadyTile())}
+              key={tile.label}
+              label={tile.label}
+              value={tile.count}
+              hint={`${share(tile.count, allOpportunities.length)}% of jobs · ${tile.note}`}
+              sharePercent={share(tile.count, allOpportunities.length)}
+              tone={tile.tone}
+              selected={tile.selected}
+              onSelect={tile.onSelect}
             />
-          )
-        }
-      />
+          ))}
+        </div>
+      )}
 
       {peakBucket && (
         <Section
           title="Score distribution"
-          description="How many scored roles fall in each score range. Click a row to show roles scoring that or higher."
-          aside={`Most roles score ${peakBucket.label}`}
+          description="How many scored jobs fall in each score range. Click a row to show jobs scoring that or higher."
+          aside={`Most jobs score ${peakBucket.label}`}
         >
           <Histogram
             buckets={scoreBuckets}
@@ -202,23 +237,21 @@ export function OpportunitiesScreen() {
       )}
 
       <Section
-        title="Ranked leads"
+        title="Ranked jobs"
         description="Click a row for the score breakdown, candidate matches and outreach drafts. Click a column header to re-sort."
-        aside={hasFilters ? `${visibleCount} roles match your filters` : `All ${visibleCount} roles, highest score first`}
+        aside={hasFilters ? `${visibleCount} jobs match your filters` : `All ${visibleCount} jobs, highest score first`}
       >
         <Stack>
-          <Spread>
-            <Cluster gap={Gap.Normal}>
-              <Field label="Industry"><Select value={industry} options={industryOptions} onChange={setIndustry} /></Field>
-              <Field label="Role"><Select value={role} options={roleOptions} onChange={setRole} /></Field>
-              <Field label="Eligibility"><Select value={status} options={STATUS_OPTIONS} onChange={selectStatusTile} /></Field>
-              <Field label="Min score"><NumberInput value={minScore} min={0} max={100} onChange={setMinScore} /></Field>
-              <ClearFilters activeCount={activeFilterCount} onClear={clearFilters} />
-            </Cluster>
-          </Spread>
+          <div className="filter-bar">
+            <Field label="Industry"><Select value={industry} options={industryOptions} onChange={setIndustry} /></Field>
+            <Field label="Role"><Select value={role} options={roleOptions} onChange={setRole} /></Field>
+            <Field label="Eligibility"><Select value={quickFilter ?? status} options={ELIGIBILITY_OPTIONS} onChange={selectEligibility} /></Field>
+            <Field label="Min score"><NumberInput value={minScore} min={0} max={100} onChange={setMinScore} /></Field>
+            <ClearFilters activeCount={activeFilterCount} onClear={clearFilters} />
+          </div>
           <ApiBoundary state={opportunities}>
             {(items) => {
-              const rows = readyOnly ? items.filter(isReadyToContact) : items
+              const rows = quickFilter ? items.filter(QUICK_FILTER_MATCHES[quickFilter]) : items
               return (
                 <DataTable
                   columns={buildColumns(rankByScore(rows))}
@@ -226,7 +259,7 @@ export function OpportunitiesScreen() {
                   getRowKey={(item) => item.id}
                   onRowActivate={(item) => openLead(item.id)}
                   initialSort={{ columnId: 'score', descending: true }}
-                  emptyMessage="No opportunities match these filters. Clear a filter to widen the search."
+                  emptyMessage="No jobs match these filters. Clear a filter to widen the search."
                   minWidth="48rem"
                   maxHeight="34rem"
                 />

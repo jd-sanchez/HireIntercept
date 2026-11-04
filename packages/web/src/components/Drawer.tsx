@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from './Button'
 import './Drawer.css'
 
@@ -45,7 +46,7 @@ export function Drawer({ label, onClose, children }: DrawerProps) {
     ;(leavingStart ? last : first).focus()
   }
 
-  return (
+  return createPortal(
     <div className="ui-drawer__backdrop" data-closing={closing} onClick={requestClose}>
       <aside
         ref={panelRef}
@@ -60,6 +61,7 @@ export function Drawer({ label, onClose, children }: DrawerProps) {
         <div className="ui-drawer__bar"><Button onClick={requestClose}>Close</Button></div>
         {children}
       </aside>
-    </div>
+    </div>,
+    document.body,
   )
 }

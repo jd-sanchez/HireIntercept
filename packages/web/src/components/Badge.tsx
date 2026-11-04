@@ -20,6 +20,8 @@ const STATUS_PRESENTATION: Record<EligibilityStatus, { label: string; tone: Tone
   [EligibilityStatus.Ineligible]: { label: 'Ineligible', tone: Tone.Bad },
 }
 
+export const statusLabel = (status: EligibilityStatus) => STATUS_PRESENTATION[status].label
+
 export function StatusBadge({ status }: { status: EligibilityStatus }) {
   const { label, tone } = STATUS_PRESENTATION[status]
   return <Badge tone={tone}>{label}</Badge>

@@ -23,7 +23,7 @@ export function Histogram({ buckets, activeLowerBound, onSelect }: HistogramProp
     <div className="ui-histogram" role="group" aria-label="Score distribution" data-filtering={activeLowerBound !== null}>
       <div className="ui-histogram__row ui-histogram__row--header" aria-hidden="true">
         <span>Score</span>
-        <span>Roles</span>
+        <span>Jobs</span>
         <span>Share</span>
         <span>Highest scorer</span>
       </div>
@@ -34,7 +34,7 @@ export function Histogram({ buckets, activeLowerBound, onSelect }: HistogramProp
           className="ui-histogram__row"
           data-active={activeLowerBound !== null && bucket.lowerBound >= activeLowerBound}
           aria-pressed={bucket.lowerBound === activeLowerBound}
-          aria-label={`${bucket.label}: ${bucket.count} roles. Show roles scoring ${bucket.lowerBound} or higher`}
+          aria-label={`${bucket.label}: ${bucket.count} jobs. Show jobs scoring ${bucket.lowerBound} or higher`}
           onClick={() => onSelect(bucket.lowerBound)}
         >
           <span className="ui-histogram__range">{bucket.label}</span>

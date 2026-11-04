@@ -8,10 +8,11 @@ import {
 import { roundedShare } from '@hireintercept/core/math'
 import { useApi } from '../api'
 import { ApiBoundary } from '../components/ApiBoundary'
-import { Badge, DRAFT_STATUS_LABEL, StatusBadge, SyntheticBadge, Tone } from '../components/Badge'
+import { Badge, DRAFT_STATUS_LABEL, StatusBadge, SyntheticBadge, Tone, statusLabel } from '../components/Badge'
 import { Card, Section } from '../components/Card'
-import { DataTable, type Column } from '../components/DataTable'
 import { Drawer } from '../components/Drawer'
+import { FieldConflictTable } from './FieldConflictTable'
+import './ScoreBreakdown.css'
 import { Cluster, Gap, Stack } from '../components/Layout'
 import { ScoreBar, ScoreRing } from '../components/Score'
 import { BulletList, Text, TextTone, TextVariant } from '../components/Text'
@@ -23,13 +24,6 @@ const COMPONENT_LABELS: Record<string, string> = {
   commercialValue: 'Commercial value & data confidence',
 }
 
-type FieldConflict = Opportunity['fieldConflicts'][number]
-
-const CONFLICT_COLUMNS: Column<FieldConflict>[] = [
-  { id: 'field', header: 'Field', width: '30%', render: (conflict) => conflict.field },
-  { id: 'values', header: 'Values', render: (conflict) => conflict.values.map((entry) => `${entry.postingId}: ${entry.value}`).join(' | ') },
-]
-
 const percentOf = (component: ScoreComponent) => (component.max === 0 ? 0 : roundedShare(component.points, component.max, 100))
 
 function ScoreBreakdown({ opportunity }: { opportunity: Opportunity }) {
@@ -40,18 +34,27 @@ function ScoreBreakdown({ opportunity }: { opportunity: Opportunity }) {
       <Cluster gap={Gap.Loose}>
         <ScoreRing value={opportunity.score.total} label={`Score ${opportunity.score.total} out of 100`} />
         <Stack gap={Gap.Tight}>
-          <Text variant={TextVariant.Heading}>{opportunity.score.total} / 100</Text>
-          {opportunity.score.provisional && <Badge tone={Tone.Warn}>provisional</Badge>}
+          <Text variant={TextVariant.Heading}>Priority score</Text>
+          <Text variant={TextVariant.Small} tone={TextTone.Muted}>out of 100</Text>
+          {opportunity.score.provisional && <Badge tone={Tone.Warn}>Provisional: needs verification</Badge>}
         </Stack>
       </Cluster>
       {entries.map(([key, component]) => (
         <Stack key={key} gap={Gap.Tight}>
           <Cluster>
             <Text strong>{COMPONENT_LABELS[key] ?? key}</Text>
-            <Text variant={TextVariant.Small} tone={TextTone.Muted}>{component.points} / {component.max}</Text>
+            <Text as="span"><Text as="span" strong>{component.points}</Text> <Text as="span" tone={TextTone.Muted}>/ {component.max}</Text></Text>
           </Cluster>
           <ScoreBar percent={percentOf(component)} />
-          <BulletList items={component.reasons} />
+          <ul className="score-lines">
+            {component.lines.map((line) => (
+              <li key={line.text} className="score-line" data-zero={line.points === 0}>
+                <span>{line.text}</span>
+                <span className="score-line__points">+{line.points}</span>
+              </li>
+            ))}
+          </ul>
+          {component.note && <Text variant={TextVariant.Small} tone={TextTone.Muted}>{component.note}</Text>}
         </Stack>
       ))}
     </Stack>
@@ -109,7 +112,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
           <Text variant={TextVariant.Small} tone={TextTone.Muted}>{display.industry} · {display.domain}</Text>
           <StatusBadge status={eligibility.status} />
           {opportunity.proposedToLeads > 1 && (
-            <Badge tone={Tone.Warn}>Proposed to {opportunity.proposedToLeads} leads: {opportunity.bestMatch?.candidateId}</Badge>
+            <Badge tone={Tone.Warn}>Proposed to {opportunity.proposedToLeads} jobs: {opportunity.bestMatch?.candidateId}</Badge>
           )}
         </Cluster>
       </Stack>
@@ -118,7 +121,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
 
       <Section title="Eligibility">
         <Stack>
-          <BulletList items={eligibility.reasons.map((reason) => `${reason.postingId}: ${reason.reason} (${reason.status})`)} />
+          <BulletList items={eligibility.reasons.map((reason) => `${reason.postingId}: ${reason.reason} (${statusLabel(reason.status)})${reason.alsoReasons.length > 0 ? ` · Also: ${reason.alsoReasons.join(', ')}` : ''}`)} />
           {eligibility.confirmWorkingHours && <Text tone={TextTone.Warn}>Confirm working hours (U.S. hours requirement unknown)</Text>}
         </Stack>
       </Section>
@@ -141,7 +144,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
             <DraftCard title="Variant B · hiring-process / speed-first" draft={drafts.B} />
           </Stack>
         ) : (
-          <Text tone={TextTone.Soft} italic>No drafts: ineligible role</Text>
+          <Text tone={TextTone.Soft} italic>No drafts: ineligible job</Text>
         )}
       </Section>
 
@@ -149,7 +152,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
         {opportunity.hasLinkedDuplicate ? (
           <Stack>
             <Text>Merged postings: {opportunity.sourcePostingIds.join(', ')} (display from {display.postingId})</Text>
-            <DataTable columns={CONFLICT_COLUMNS} rows={opportunity.fieldConflicts} getRowKey={(conflict) => conflict.field} />
+            <FieldConflictTable postingIds={opportunity.sourcePostingIds} shownPostingId={display.postingId} conflicts={opportunity.fieldConflicts} />
           </Stack>
         ) : (
           <Text tone={TextTone.Soft}>No linked duplicates. Repeat postings are a signal of possible ongoing need, not proof of hiring difficulty.</Text>
@@ -162,7 +165,7 @@ function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
 export function LeadDrawer({ opportunityId, onClose }: { opportunityId: string; onClose: () => void }) {
   const state = useApi<Opportunity>(`/api/opportunities/${opportunityId}`)
   return (
-    <Drawer label="Lead detail" onClose={onClose}>
+    <Drawer label="Job detail" onClose={onClose}>
       <ApiBoundary state={state}>{(opportunity) => <DrawerBody opportunity={opportunity} />}</ApiBoundary>
     </Drawer>
   )
