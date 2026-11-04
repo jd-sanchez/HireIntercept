@@ -1,0 +1,20 @@
+.ui-button {
+  font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-control);
+  padding: 0.45rem 0.9rem; border: 1px solid var(--color-line-strong); background: var(--color-surface); color: var(--color-ink);
+  transition: background var(--duration-quick) var(--ease-out), transform var(--duration-quick) var(--ease-out);
+}
+.ui-button:hover { background: var(--color-sunken); }
+.ui-button:active { transform: scale(0.97); }
+.ui-button[data-variant='primary'] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
+.ui-button[data-variant='primary']:hover { background: var(--color-accent-hover); }
+.ui-button[data-variant='ghost'] { border-color: transparent; background: transparent; color: var(--color-accent); }
+.ui-button[data-variant='ghost']:hover { background: var(--color-sunken); }
+
+.ui-segmented { display: inline-flex; padding: var(--space-1); gap: var(--space-1); background: var(--color-sunken); border-radius: var(--radius-card); }
+.ui-segmented__option {
+  font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: 0; background: transparent;
+  color: var(--color-ink-soft); padding: 0.4rem 0.9rem; border-radius: var(--radius-control);
+  transition: background var(--duration-quick) var(--ease-out), color var(--duration-quick) var(--ease-out);
+}
+.ui-segmented__option:hover { color: var(--color-ink); }
+.ui-segmented__option[aria-pressed='true'] { background: var(--color-surface); color: var(--color-ink); box-shadow: var(--shadow-card); }

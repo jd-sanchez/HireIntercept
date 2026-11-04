@@ -1,6 +1,11 @@
 import { ContactState, StepStatus, StopReason, type ContactSequence, type SequenceReport } from '@hireintercept/core/sequences'
 import { useApi } from '../api'
-import { ApiBoundary, Badge, Section, Tone, tableCellClass, tableHeadClass } from '../components/ui'
+import { ApiBoundary } from '../components/ApiBoundary'
+import { Badge, Tone } from '../components/Badge'
+import { Card, Section } from '../components/Card'
+import { DataTable, type Column } from '../components/DataTable'
+import { Gap, Stack } from '../components/Layout'
+import { Text, TextTone, TextVariant } from '../components/Text'
 
 const FEATURED_EXAMPLES = [
   { postingId: 'JOB-001', label: 'JOB-001: positive reply on day 1 cancels steps 2–4' },
@@ -32,101 +37,110 @@ const STOP_REASON_LABEL: Record<StopReason, string> = {
   [StopReason.IneligibleRole]: 'Ineligible role',
 }
 
-function TimelineRow({ contact }: { contact: ContactSequence }) {
-  return (
-    <tr>
-      <td className={tableCellClass}>
-        <div className="font-medium">{contact.contactKey}</div>
-        <div className="text-xs text-ink-muted">{contact.postingIds.join(', ')}</div>
-      </td>
-      <td className={tableCellClass}><Badge tone={STATE_TONE[contact.state]}>{contact.state}</Badge></td>
-      {contact.steps.map((step) => (
-        <td key={step.step} className={tableCellClass}>
-          <Badge tone={STEP_TONE[step.status]}>{step.status}</Badge>
-          {step.violation && <div className="mt-1"><Badge tone={Tone.Bad}>violation</Badge></div>}
-        </td>
-      ))}
-      <td className={tableCellClass}>
-        {contact.stopReason ? `${STOP_REASON_LABEL[contact.stopReason]}${contact.stopDay === null ? '' : ` · day ${contact.stopDay}`}` : '—'}
-        {contact.meetingsBooked > 0 && <div><Badge tone={Tone.Good}>meeting booked</Badge></div>}
-        {contact.clientsWon > 0 && <div><Badge tone={Tone.Good}>client won</Badge></div>}
-      </td>
-    </tr>
-  )
+type SuppressionEntry = SequenceReport['suppressionList'][number]
+
+const SUPPRESSION_COLUMNS: Column<SuppressionEntry>[] = [
+  { id: 'contact', header: 'Contact', render: (entry) => entry.contactKey },
+  { id: 'postings', header: 'Postings', render: (entry) => entry.postingIds.join(', ') },
+  { id: 'reason', header: 'Reason', render: (entry) => STOP_REASON_LABEL[entry.reason] },
+  { id: 'day', header: 'Day', render: (entry) => entry.day ?? 'from the start' },
+  { id: 'scope', header: 'Scope', render: (entry) => entry.scope.replaceAll('_', ' ') },
+]
+
+function timelineColumns(schedule: SequenceReport['schedule']): Column<ContactSequence>[] {
+  return [
+    {
+      id: 'contact',
+      header: 'Contact (domain)',
+      width: '24%',
+      render: (contact) => (
+        <Stack gap={Gap.Tight}>
+          <Text strong>{contact.contactKey}</Text>
+          <Text variant={TextVariant.Small} tone={TextTone.Muted}>{contact.postingIds.join(', ')}</Text>
+        </Stack>
+      ),
+    },
+    { id: 'state', header: 'State', width: '10%', render: (contact) => <Badge tone={STATE_TONE[contact.state]}>{contact.state}</Badge> },
+    ...schedule.map((entry, position) => ({
+      id: `step-${entry.step}`,
+      header: `Step ${entry.step} · day ${entry.day}`,
+      width: '11%',
+      render: (contact: ContactSequence) => {
+        const step = contact.steps[position]
+        if (!step) return null
+        return (
+          <Stack gap={Gap.Tight}>
+            <Badge tone={STEP_TONE[step.status]}>{step.status}</Badge>
+            {step.violation && <Badge tone={Tone.Bad}>violation</Badge>}
+          </Stack>
+        )
+      },
+    })),
+    {
+      id: 'stop',
+      header: 'Stop reason',
+      render: (contact) => (
+        <Stack gap={Gap.Tight}>
+          <Text variant={TextVariant.Small}>
+            {contact.stopReason ? `${STOP_REASON_LABEL[contact.stopReason]}${contact.stopDay === null ? '' : ` · day ${contact.stopDay}`}` : '—'}
+          </Text>
+          {contact.meetingsBooked > 0 && <Badge tone={Tone.Good}>meeting booked</Badge>}
+          {contact.clientsWon > 0 && <Badge tone={Tone.Good}>client won</Badge>}
+        </Stack>
+      ),
+    },
+  ]
 }
 
 function TimelineTable({ contacts, schedule }: { contacts: ContactSequence[]; schedule: SequenceReport['schedule'] }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr>
-            <th className={tableHeadClass}>Contact (domain)</th>
-            <th className={tableHeadClass}>State</th>
-            {schedule.map((entry) => <th key={entry.step} className={tableHeadClass}>Step {entry.step} · day {entry.day}</th>)}
-            <th className={tableHeadClass}>Stop reason</th>
-          </tr>
-        </thead>
-        <tbody>{contacts.map((contact) => <TimelineRow key={contact.contactKey} contact={contact} />)}</tbody>
-      </table>
-    </div>
-  )
+  return <DataTable columns={timelineColumns(schedule)} rows={contacts} getRowKey={(contact) => contact.contactKey} minWidth="46rem" />
 }
 
 function SequencesBody({ report }: { report: SequenceReport }) {
   return (
-    <div className="space-y-4">
-      <p className="text-lg font-semibold">As of day {report.asOfDay} (latest event)</p>
-      <p className="text-sm text-ink-soft">
-        Proposed schedule: {report.schedule.map((entry) => `step ${entry.step} on day ${entry.day}`).join(', ')}. A reply, bounce or
-        unsubscribe stops every not-yet-sent step for the whole domain.
-      </p>
+    <Stack gap={Gap.Loose}>
+      <Card>
+        <Stack gap={Gap.Tight}>
+          <Text variant={TextVariant.Heading}>As of day {report.asOfDay} (latest event)</Text>
+          <Text tone={TextTone.Soft}>
+            Proposed schedule: {report.schedule.map((entry) => `step ${entry.step} on day ${entry.day}`).join(', ')}. A reply, bounce or
+            unsubscribe stops every not-yet-sent step for the whole domain.
+          </Text>
+        </Stack>
+      </Card>
 
       <Section title="Required examples">
-        <div className="space-y-4">
+        <Stack gap={Gap.Loose}>
           {FEATURED_EXAMPLES.map((example) => {
             const contact = report.contacts.find((entry) => entry.postingIds.includes(example.postingId))
             return (
-              <div key={example.postingId}>
-                <p className="mb-1 text-sm font-medium">{example.label}</p>
+              <Stack key={example.postingId} gap={Gap.Tight}>
+                <Text strong>{example.label}</Text>
                 {contact && <TimelineTable contacts={[contact]} schedule={report.schedule} />}
-              </div>
+              </Stack>
             )
           })}
-        </div>
+        </Stack>
       </Section>
 
       <Section title="All contacts"><TimelineTable contacts={report.contacts} schedule={report.schedule} /></Section>
 
       <Section title="Suppression list">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={tableHeadClass}>Contact</th>
-              <th className={tableHeadClass}>Postings</th>
-              <th className={tableHeadClass}>Reason</th>
-              <th className={tableHeadClass}>Day</th>
-              <th className={tableHeadClass}>Scope</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.suppressionList.map((entry) => (
-              <tr key={entry.contactKey}>
-                <td className={tableCellClass}>{entry.contactKey}</td>
-                <td className={tableCellClass}>{entry.postingIds.join(', ')}</td>
-                <td className={tableCellClass}>{STOP_REASON_LABEL[entry.reason]}</td>
-                <td className={tableCellClass}>{entry.day ?? 'from the start'}</td>
-                <td className={tableCellClass}>{entry.scope.replaceAll('_', ' ')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable columns={SUPPRESSION_COLUMNS} rows={report.suppressionList} getRowKey={(entry) => entry.contactKey} emptyMessage="No suppressed contacts." />
       </Section>
-    </div>
+    </Stack>
   )
 }
 
 export function SequencesScreen() {
   const state = useApi<SequenceReport>('/api/sequences')
-  return <ApiBoundary state={state}>{(report) => <SequencesBody report={report} />}</ApiBoundary>
+  return (
+    <Stack gap={Gap.Loose}>
+      <Stack gap={Gap.Tight}>
+        <Text as="h1" variant={TextVariant.Title}>Sequences</Text>
+        <Text tone={TextTone.Soft}>Every contact's outreach timeline and why it stopped.</Text>
+      </Stack>
+      <ApiBoundary state={state}>{(report) => <SequencesBody report={report} />}</ApiBoundary>
+    </Stack>
+  )
 }

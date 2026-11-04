@@ -1,43 +1,76 @@
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type ColumnDef,
-  type SortingState,
-} from '@tanstack/react-table'
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { EligibilityStatus, type FilterOptions, type OpportunityListItem } from '@hireintercept/core/types'
 import { useApi } from '../api'
-import { Badge, StatusBadge, Tone, tableCellClass, tableHeadClass } from '../components/ui'
-import { ImportSection } from './ImportSection'
+import { ApiBoundary } from '../components/ApiBoundary'
+import { Badge, StatusBadge, Tone } from '../components/Badge'
+import { Button, ButtonVariant } from '../components/Button'
+import { Card } from '../components/Card'
+import { ColumnAlign, DataTable, type Column } from '../components/DataTable'
+import { Field, NumberInput, Select } from '../components/Field'
+import { Cluster, Gap, Spread, Stack } from '../components/Layout'
+import { ScoreBar } from '../components/Score'
+import { Text, TextTone, TextVariant } from '../components/Text'
+import { ImportOverview } from './ImportOverview'
 import { LeadDrawer } from './LeadDrawer'
 
-const STATUS_OPTIONS = Object.values(EligibilityStatus)
-const fieldClass = 'rounded border border-line-strong bg-surface px-2 py-1 text-sm'
+const STATUS_OPTIONS = [
+  { value: '', label: 'All' },
+  ...Object.values(EligibilityStatus).map((entry) => ({ value: entry, label: entry.replace('_', ' ') })),
+]
 
-const SORT_ARIA: Record<string, 'ascending' | 'descending'> = { asc: 'ascending', desc: 'descending' }
-
-function activateOnKey(event: KeyboardEvent<HTMLElement>, action: () => void) {
-  if (event.key !== 'Enter' && event.key !== ' ') return
-  event.preventDefault()
-  action()
-}
+const toOptions = (entries: string[] | undefined) => [{ value: '', label: 'All' }, ...(entries ?? []).map((entry) => ({ value: entry, label: entry }))]
 
 function BestCandidateCell({ item }: { item: OpportunityListItem }) {
-  if (item.bestCandidate) {
-    const { candidateId, verified, coveragePercent, proposedToLeads } = item.bestCandidate
-    return (
-      <span className="space-x-1">
-        <span>{candidateId}</span>
-        <Badge tone={verified ? Tone.Good : Tone.Warn}>{verified ? 'verified' : `unverified · ${coveragePercent}%`}</Badge>
-        {proposedToLeads > 1 && <Badge tone={Tone.Warn}>Proposed to {proposedToLeads} leads</Badge>}
-      </span>
-    )
+  if (!item.bestCandidate) {
+    const isIneligible = item.status === EligibilityStatus.Ineligible
+    return <Text variant={TextVariant.Small} tone={TextTone.Muted} italic>{isIneligible ? 'Not matched: ineligible' : 'No candidate in pool'}</Text>
   }
-  const isIneligible = item.status === EligibilityStatus.Ineligible
-  return <span className="text-ink-muted italic">{isIneligible ? 'Not matched: ineligible' : 'No candidate in pool'}</span>
+  const { candidateId, verified, coveragePercent, proposedToLeads } = item.bestCandidate
+  return (
+    <Stack gap={Gap.Tight}>
+      <Text strong>{candidateId}</Text>
+      <Cluster gap={Gap.Tight}>
+        <Badge tone={verified ? Tone.Good : Tone.Warn}>{verified ? 'Verified' : `Unverified · ${coveragePercent}%`}</Badge>
+        {proposedToLeads > 1 && <Badge tone={Tone.Warn}>Proposed to {proposedToLeads} leads</Badge>}
+      </Cluster>
+    </Stack>
+  )
 }
+
+const COLUMNS: Column<OpportunityListItem>[] = [
+  {
+    id: 'company',
+    header: 'Company',
+    sortValue: (item) => item.company,
+    render: (item) => (
+      <Stack gap={Gap.Tight}>
+        <Text strong>{item.company}</Text>
+        <Text variant={TextVariant.Small} tone={TextTone.Muted}>{item.industry}</Text>
+      </Stack>
+    ),
+  },
+  { id: 'role', header: 'Role', sortValue: (item) => item.role, render: (item) => item.role },
+  { id: 'status', header: 'Status', sortValue: (item) => item.status, render: (item) => <StatusBadge status={item.status} /> },
+  {
+    id: 'score',
+    header: 'Score',
+    width: '9rem',
+    sortValue: (item) => item.score ?? -1,
+    render: (item) =>
+      item.score === null ? (
+        <Text variant={TextVariant.Small} tone={TextTone.Muted} italic>{item.notScoredReason}</Text>
+      ) : (
+        <Stack gap={Gap.Tight}>
+          <Cluster gap={Gap.Tight}>
+            <Text variant={TextVariant.Heading}>{item.score}</Text>
+            {item.provisional && <Badge tone={Tone.Warn}>provisional</Badge>}
+          </Cluster>
+          <ScoreBar percent={item.score} />
+        </Stack>
+      ),
+  },
+  { id: 'bestCandidate', header: 'Best candidate', sortValue: (item) => item.bestCandidate?.candidateId ?? '', render: (item) => <BestCandidateCell item={item} />, align: ColumnAlign.Start },
+]
 
 export function OpportunitiesScreen() {
   const filterOptions = useApi<FilterOptions>('/api/filters')
@@ -45,7 +78,6 @@ export function OpportunitiesScreen() {
   const [role, setRole] = useState('')
   const [status, setStatus] = useState('')
   const [minScore, setMinScore] = useState('')
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'score', desc: true }])
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const hasFilters = Boolean(industry || role || status || minScore)
@@ -58,114 +90,47 @@ export function OpportunitiesScreen() {
 
   const query = new URLSearchParams({ industry, role, status, minScore }).toString()
   const opportunities = useApi<OpportunityListItem[]>(`/api/opportunities?${query}`)
-
-  const columns = useMemo<ColumnDef<OpportunityListItem>[]>(
-    () => [
-      { accessorKey: 'company', header: 'Company' },
-      { accessorKey: 'role', header: 'Role' },
-      { accessorKey: 'industry', header: 'Industry' },
-      { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
-      {
-        id: 'score',
-        header: 'Score',
-        accessorFn: (item) => item.score ?? -1,
-        cell: ({ row }) =>
-          row.original.score === null ? (
-            <span className="text-ink-muted italic">{row.original.notScoredReason}</span>
-          ) : (
-            <span className="flex items-center gap-2">
-              <span className="text-base font-semibold tabular-nums">{row.original.score}</span>
-              {row.original.provisional && <Badge tone={Tone.Warn}>provisional</Badge>}
-            </span>
-          ),
-      },
-      {
-        id: 'bestCandidate',
-        header: 'Best candidate',
-        accessorFn: (item) => item.bestCandidate?.candidateId ?? '',
-        cell: ({ row }) => <BestCandidateCell item={row.original} />,
-      },
-    ],
-    [],
-  )
-
-  const table = useReactTable({
-    data: opportunities.data ?? [],
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  })
+  const industryOptions = useMemo(() => toOptions(filterOptions.data?.industries), [filterOptions.data])
+  const roleOptions = useMemo(() => toOptions(filterOptions.data?.roles), [filterOptions.data])
 
   return (
-    <div>
-      <ImportSection />
-      <div className="mb-3 flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex flex-col gap-1">Industry
-          <select className={fieldClass} value={industry} onChange={(event) => setIndustry(event.target.value)}>
-            <option value="">All</option>
-            {filterOptions.data?.industries.map((entry) => <option key={entry}>{entry}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">Role
-          <select className={fieldClass} value={role} onChange={(event) => setRole(event.target.value)}>
-            <option value="">All</option>
-            {filterOptions.data?.roles.map((entry) => <option key={entry}>{entry}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">Eligibility
-          <select className={fieldClass} value={status} onChange={(event) => setStatus(event.target.value)}>
-            <option value="">All</option>
-            {STATUS_OPTIONS.map((entry) => <option key={entry} value={entry}>{entry.replace('_', ' ')}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">Min score
-          <input className={`${fieldClass} w-24`} type="number" min={0} max={100} value={minScore} onChange={(event) => setMinScore(event.target.value)} />
-        </label>
-        {hasFilters && <button className="pb-1 text-accent underline-offset-2 hover:underline" onClick={clearFilters}>Clear filters</button>}
-        <span className="pb-1 text-ink-muted">{opportunities.data?.length ?? 0} opportunities · click a header to sort, a row for detail</span>
-      </div>
-      {opportunities.error && <p className="rounded bg-bad-soft p-3 text-sm text-bad-ink">Could not load data: {opportunities.error}</p>}
-      <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
-        <table className="w-full">
-          <thead>
-            {table.getHeaderGroups().map((group) => (
-              <tr key={group.id}>
-                {group.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className={`${tableHeadClass} cursor-pointer select-none`}
-                    tabIndex={0}
-                    aria-sort={SORT_ARIA[header.column.getIsSorted() as string] ?? 'none'}
-                    onClick={header.column.getToggleSortingHandler()}
-                    onKeyDown={(event) => activateOnKey(event, () => header.column.toggleSorting())}
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {{ asc: ' ▲', desc: ' ▼' }[header.column.getIsSorted() as string] ?? ''}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className="cursor-pointer hover:bg-sunken focus-visible:bg-sunken"
-                tabIndex={0}
-                onClick={() => setSelectedId(row.original.id)}
-                onKeyDown={(event) => activateOnKey(event, () => setSelectedId(row.original.id))}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={tableCellClass}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <Stack gap={Gap.Loose}>
+      <Stack gap={Gap.Tight}>
+        <Text as="h1" variant={TextVariant.Title}>Opportunities</Text>
+        <Text tone={TextTone.Soft}>Remote roles ranked by how well we can fill them. Select a row for the full breakdown.</Text>
+      </Stack>
+
+      <ImportOverview />
+
+      <Card>
+        <Stack>
+          <Spread>
+            <Cluster gap={Gap.Normal}>
+              <Field label="Industry"><Select value={industry} options={industryOptions} onChange={setIndustry} /></Field>
+              <Field label="Role"><Select value={role} options={roleOptions} onChange={setRole} /></Field>
+              <Field label="Eligibility"><Select value={status} options={STATUS_OPTIONS} onChange={setStatus} /></Field>
+              <Field label="Min score"><NumberInput value={minScore} min={0} max={100} onChange={setMinScore} /></Field>
+              {hasFilters && <Button variant={ButtonVariant.Ghost} onClick={clearFilters}>Clear filters</Button>}
+            </Cluster>
+            <Text variant={TextVariant.Small} tone={TextTone.Muted}>{opportunities.data?.length ?? 0} opportunities</Text>
+          </Spread>
+          <ApiBoundary state={opportunities}>
+            {(items) => (
+              <DataTable
+                columns={COLUMNS}
+                rows={items}
+                getRowKey={(item) => item.id}
+                onRowActivate={(item) => setSelectedId(item.id)}
+                initialSort={{ columnId: 'score', descending: true }}
+                emptyMessage="No opportunities match these filters. Clear a filter to widen the search."
+                minWidth="44rem"
+              />
+            )}
+          </ApiBoundary>
+        </Stack>
+      </Card>
+
       {selectedId && <LeadDrawer opportunityId={selectedId} onClose={() => setSelectedId(null)} />}
-    </div>
+    </Stack>
   )
 }

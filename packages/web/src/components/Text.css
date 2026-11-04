@@ -1,0 +1,15 @@
+.ui-text { margin: 0; line-height: 1.5; font-size: 0.9375rem; color: var(--color-ink); }
+.ui-text[data-variant='title'] { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.ui-text[data-variant='heading'] { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; }
+.ui-text[data-variant='small'] { font-size: 0.8125rem; }
+.ui-text[data-variant='eyebrow'] { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink-muted); }
+.ui-text[data-tone='soft'] { color: var(--color-ink-soft); }
+.ui-text[data-tone='muted'] { color: var(--color-ink-muted); }
+.ui-text[data-tone='good'] { color: var(--color-good-ink); }
+.ui-text[data-tone='warn'] { color: var(--color-warn-ink); }
+.ui-text[data-tone='bad'] { color: var(--color-bad-ink); }
+.ui-text[data-italic='true'] { font-style: italic; }
+.ui-text[data-strong='true'] { font-weight: 600; }
+pre.ui-text { white-space: pre-wrap; font-family: inherit; }
+
+.ui-bullets { margin: 0; padding-left: 1.1rem; display: grid; gap: var(--space-1); font-size: 0.875rem; color: var(--color-ink-soft); }

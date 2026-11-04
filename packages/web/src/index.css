@@ -29,6 +29,11 @@
   --color-info-soft: oklch(0.95 0.03 235);
   --color-info-ink: oklch(0.38 0.09 240);
 
+  --color-rail: oklch(0.2 0.03 258);
+  --color-rail-ink: oklch(0.93 0.01 250);
+  --color-rail-muted: oklch(0.68 0.02 255);
+  --color-rail-active: oklch(0.3 0.05 258);
+
   --radius-card: 0.75rem;
   --shadow-card: 0 1px 2px oklch(0.22 0.02 255 / 0.05);
 }
@@ -42,5 +47,25 @@
   }
   :where(button, select, input, summary):focus-visible {
     @apply outline-2 outline-offset-2 outline-accent;
+  }
+}
+
+:root {
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius-control: 0.5rem;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-quick: 140ms;
+  --duration-panel: 220ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-quick: 0ms;
+    --duration-panel: 0ms;
   }
 }

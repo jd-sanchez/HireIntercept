@@ -4,14 +4,27 @@ import { CampaignScope, type CampaignMetrics, type CampaignReport } from '@hirei
 import { roundedShare } from '@hireintercept/core/math'
 import { Variant } from '@hireintercept/core/types'
 import { useApi } from '../api'
-import { ApiBoundary, Badge, Section, Tone, tableCellClass, tableHeadClass } from '../components/ui'
+import { ApiBoundary } from '../components/ApiBoundary'
+import { Badge, Tone } from '../components/Badge'
+import { SegmentedControl } from '../components/Button'
+import { Callout } from '../components/Callout'
+import { Section } from '../components/Card'
+import { DataTable, type Column } from '../components/DataTable'
+import { Cluster, Gap, Spread, Stack } from '../components/Layout'
+import { Stat, StatGrid } from '../components/Stat'
+import { BulletList, Text, TextTone, TextVariant } from '../components/Text'
+
+interface MetricRow {
+  label: string
+  read: (metrics: CampaignMetrics) => string | number
+}
 
 const SCOPE_LABELS: Record<CampaignScope, string> = {
   [CampaignScope.All]: 'All events',
   [CampaignScope.Eligible]: 'Eligible only',
 }
 
-const METRIC_ROWS: { label: string; read: (metrics: CampaignMetrics) => string | number }[] = [
+const METRIC_ROWS: MetricRow[] = [
   { label: 'Messages sent', read: (metrics) => metrics.messagesSent },
   { label: 'Unique contacts', read: (metrics) => metrics.uniqueContacts },
   { label: 'Delivered', read: (metrics) => metrics.delivered },
@@ -39,14 +52,14 @@ function Funnel({ metrics }: { metrics: CampaignMetrics }) {
     { stage: 'Clients won', count: metrics.clientsWon },
   ]
   return (
-    <div className="h-72">
+    <div style={{ height: '18rem' }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={stages} layout="vertical" margin={{ left: 24, right: 32 }}>
-          <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-          <XAxis type="number" allowDecimals={false} />
-          <YAxis type="category" dataKey="stage" width={130} />
-          <Bar dataKey="count" fill="var(--color-accent)">
-            <LabelList dataKey="count" position="right" />
+          <CartesianGrid horizontal={false} stroke="var(--color-line)" />
+          <XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: 'var(--color-ink-muted)', fontSize: 12 }} />
+          <YAxis type="category" dataKey="stage" width={130} axisLine={false} tickLine={false} tick={{ fill: 'var(--color-ink-soft)', fontSize: 13 }} />
+          <Bar dataKey="count" fill="var(--color-accent)" radius={[0, 4, 4, 0]} barSize={18}>
+            <LabelList dataKey="count" position="right" fill="var(--color-ink)" fontSize={13} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -55,58 +68,51 @@ function Funnel({ metrics }: { metrics: CampaignMetrics }) {
 }
 
 function CampaignBody({ report }: { report: CampaignReport }) {
-  const columns: { label: string; metrics: CampaignMetrics }[] = [
+  const { overall } = report.metrics
+  const variants = [
     { label: 'Variant A (candidate-first)', metrics: report.metrics[Variant.A] },
     { label: 'Variant B (speed-first)', metrics: report.metrics[Variant.B] },
-    { label: 'Overall', metrics: report.metrics.overall },
+    { label: 'Overall', metrics: overall },
+  ]
+  const columns: Column<MetricRow>[] = [
+    { id: 'metric', header: 'Metric', render: (row) => row.label },
+    ...variants.map((variant) => ({ id: variant.label, header: variant.label, render: (row: MetricRow) => row.read(variant.metrics) })),
   ]
   return (
-    <div className="space-y-4">
-      <div className="rounded border border-warn bg-warn-soft p-3 text-sm text-warn-ink">
-        {report.sampleSize.message} ({report.sampleSize.contactsPerArm[Variant.A]} contacts in A, {report.sampleSize.contactsPerArm[Variant.B]} in B).
-      </div>
-      {report.insight && <p className="rounded bg-bad-soft p-3 text-sm font-medium text-bad-ink">{report.insight}</p>}
+    <Stack gap={Gap.Loose}>
+      <Callout>
+        <Text>{report.sampleSize.message} ({report.sampleSize.contactsPerArm[Variant.A]} contacts in A, {report.sampleSize.contactsPerArm[Variant.B]} in B).</Text>
+        {report.insight && <Text strong>{report.insight}</Text>}
+      </Callout>
 
-      <Section title="Funnel (overall)"><Funnel metrics={report.metrics.overall} /></Section>
+      <StatGrid>
+        <Stat label="Messages sent" value={overall.messagesSent} tone={Tone.Info} />
+        <Stat label="Delivered" value={overall.delivered} />
+        <Stat label="Positive replies" value={overall.positiveReplies} tone={Tone.Good} />
+        <Stat label="Meetings booked" value={overall.meetingsBooked} tone={Tone.Good} />
+      </StatGrid>
+
+      <Section title="Funnel (overall)"><Funnel metrics={overall} /></Section>
 
       <Section title="A/B comparison">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={tableHeadClass}>Metric</th>
-              {columns.map((column) => <th key={column.label} className={tableHeadClass}>{column.label}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {METRIC_ROWS.map((row) => (
-              <tr key={row.label}>
-                <td className={tableCellClass}>{row.label}</td>
-                {columns.map((column) => <td key={column.label} className={tableCellClass}>{row.read(column.metrics)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable columns={columns} rows={METRIC_ROWS} getRowKey={(row) => row.label} minWidth="38rem" />
       </Section>
 
       <Section title="Data-integrity warnings">
-        {report.warnings.length === 0 ? <p className="text-sm">No warnings.</p> : (
-          <ul className="space-y-2 text-sm">
+        {report.warnings.length === 0 ? <Text>No warnings.</Text> : (
+          <Stack>
             {report.warnings.map((warning) => (
-              <li key={warning.type}>
-                <Badge tone={Tone.Bad}>{warning.message}</Badge>{' '}
-                <span className="text-ink-soft">{warning.postingIds.join(', ')}</span>
-              </li>
+              <Cluster key={warning.type} gap={Gap.Tight}>
+                <Badge tone={Tone.Bad}>{warning.message}</Badge>
+                <Text variant={TextVariant.Small} tone={TextTone.Soft}>{warning.postingIds.join(', ')}</Text>
+              </Cluster>
             ))}
-          </ul>
+          </Stack>
         )}
       </Section>
 
-      <Section title="Notes">
-        <ul className="list-disc pl-5 text-sm text-ink-soft">
-          {report.notes.map((note) => <li key={note}>{note}</li>)}
-        </ul>
-      </Section>
-    </div>
+      <Section title="Notes"><BulletList items={report.notes} /></Section>
+    </Stack>
   )
 }
 
@@ -114,19 +120,20 @@ export function CampaignScreen() {
   const [scope, setScope] = useState(CampaignScope.All)
   const state = useApi<CampaignReport>(`/api/campaign?scope=${scope}`)
   return (
-    <div className="space-y-4">
-      <div className="flex gap-1">
-        {Object.values(CampaignScope).map((entry) => (
-          <button
-            key={entry}
-            onClick={() => setScope(entry)}
-            className={`rounded px-3 py-1.5 text-sm ${entry === scope ? 'bg-accent text-accent-ink' : 'bg-surface ring-1 ring-line-strong'}`}
-          >
-            {SCOPE_LABELS[entry]}
-          </button>
-        ))}
-      </div>
+    <Stack gap={Gap.Loose}>
+      <Spread>
+        <Stack gap={Gap.Tight}>
+          <Text as="h1" variant={TextVariant.Title}>Campaign</Text>
+          <Text tone={TextTone.Soft}>Variant A against B, from send to closed client.</Text>
+        </Stack>
+        <SegmentedControl
+          label="Event scope"
+          value={scope}
+          options={Object.values(CampaignScope).map((entry) => ({ value: entry, label: SCOPE_LABELS[entry] }))}
+          onChange={setScope}
+        />
+      </Spread>
       <ApiBoundary state={state}>{(report) => <CampaignBody report={report} />}</ApiBoundary>
-    </div>
+    </Stack>
   )
 }

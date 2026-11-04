@@ -1,0 +1,9 @@
+.ui-stack { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.ui-stack[data-gap='tight'] { gap: var(--space-2); }
+.ui-stack[data-gap='loose'] { gap: var(--space-5); }
+
+.ui-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.ui-cluster[data-gap='tight'] { gap: var(--space-2); }
+.ui-cluster[data-gap='loose'] { gap: var(--space-5); }
+
+.ui-spread { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }

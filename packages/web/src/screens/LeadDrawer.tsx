@@ -1,24 +1,20 @@
-import { useEffect } from 'react'
 import {
   DraftStatus,
-  EligibilityStatus,
   type CandidateMatch,
   type EmailDraft,
   type Opportunity,
   type ScoreComponent,
 } from '@hireintercept/core/types'
+import { roundedShare } from '@hireintercept/core/math'
 import { useApi } from '../api'
-import {
-  ApiBoundary,
-  Badge,
-  DRAFT_STATUS_LABEL,
-  Section,
-  StatusBadge,
-  SyntheticBadge,
-  Tone,
-  tableCellClass,
-  tableHeadClass,
-} from '../components/ui'
+import { ApiBoundary } from '../components/ApiBoundary'
+import { Badge, DRAFT_STATUS_LABEL, StatusBadge, SyntheticBadge, Tone } from '../components/Badge'
+import { Card, Section } from '../components/Card'
+import { DataTable, type Column } from '../components/DataTable'
+import { Drawer } from '../components/Drawer'
+import { Cluster, Gap, Stack } from '../components/Layout'
+import { ScoreBar, ScoreRing } from '../components/Score'
+import { BulletList, Text, TextTone, TextVariant } from '../components/Text'
 
 const COMPONENT_LABELS: Record<string, string> = {
   remoteEligibility: 'Remote eligibility',
@@ -27,154 +23,147 @@ const COMPONENT_LABELS: Record<string, string> = {
   commercialValue: 'Commercial value & data confidence',
 }
 
+type FieldConflict = Opportunity['fieldConflicts'][number]
+
+const CONFLICT_COLUMNS: Column<FieldConflict>[] = [
+  { id: 'field', header: 'Field', width: '30%', render: (conflict) => conflict.field },
+  { id: 'values', header: 'Values', render: (conflict) => conflict.values.map((entry) => `${entry.postingId}: ${entry.value}`).join(' | ') },
+]
+
+const percentOf = (component: ScoreComponent) => (component.max === 0 ? 0 : roundedShare(component.points, component.max, 100))
+
 function ScoreBreakdown({ opportunity }: { opportunity: Opportunity }) {
-  if (!opportunity.score) return <p className="text-sm italic text-ink-soft">{opportunity.notScoredReason}</p>
+  if (!opportunity.score) return <Text tone={TextTone.Soft} italic>{opportunity.notScoredReason}</Text>
   const entries: [string, ScoreComponent][] = Object.entries(opportunity.score.components)
   return (
-    <div className="space-y-3 text-sm">
-      <p className="text-lg font-semibold">
-        {opportunity.score.total} / 100 {opportunity.score.provisional && <Badge tone={Tone.Warn}>provisional</Badge>}
-      </p>
+    <Stack gap={Gap.Loose}>
+      <Cluster gap={Gap.Loose}>
+        <ScoreRing value={opportunity.score.total} label={`Score ${opportunity.score.total} out of 100`} />
+        <Stack gap={Gap.Tight}>
+          <Text variant={TextVariant.Heading}>{opportunity.score.total} / 100</Text>
+          {opportunity.score.provisional && <Badge tone={Tone.Warn}>provisional</Badge>}
+        </Stack>
+      </Cluster>
       {entries.map(([key, component]) => (
-        <div key={key}>
-          <p className="font-medium">{COMPONENT_LABELS[key] ?? key}: {component.points} / {component.max}</p>
-          <ul className="list-disc pl-5 text-ink-soft">
-            {component.reasons.map((reason) => <li key={reason}>{reason}</li>)}
-          </ul>
-        </div>
+        <Stack key={key} gap={Gap.Tight}>
+          <Cluster>
+            <Text strong>{COMPONENT_LABELS[key] ?? key}</Text>
+            <Text variant={TextVariant.Small} tone={TextTone.Muted}>{component.points} / {component.max}</Text>
+          </Cluster>
+          <ScoreBar percent={percentOf(component)} />
+          <BulletList items={component.reasons} />
+        </Stack>
       ))}
-    </div>
+    </Stack>
   )
 }
 
 function MatchCard({ match }: { match: CandidateMatch }) {
   return (
-    <div className="rounded border border-line p-3 text-sm">
-      <p className="mb-1 flex flex-wrap items-center gap-2 font-medium">
-        {match.candidateId} · {match.roleSpecialty}
-        <Badge tone={match.verified ? Tone.Good : Tone.Warn}>{match.verified ? 'Verified match' : 'Not verified'}</Badge>
-        <SyntheticBadge />
-      </p>
-      <p>Coverage {match.coveragePercent}% ({match.matchedSkills.length}/{match.requiredSkillCount} skills)</p>
-      <p className="text-good-ink">Evidence: {match.matchedSkills.join(', ') || 'none'}</p>
-      <p>Availability: {match.availableNow ? 'available now' : 'not available now'} · U.S. hours: {match.usHoursAvailable ? 'yes' : 'no'}</p>
-      {match.gaps.length > 0 && <p className="text-bad-ink">Gaps: {match.gaps.join('; ')}</p>}
-      {match.notes.length > 0 && <p className="text-warn-ink">{match.notes.join('; ')}</p>}
-    </div>
+    <Card inset>
+      <Stack gap={Gap.Tight}>
+        <Cluster gap={Gap.Tight}>
+          <Text strong>{match.candidateId} · {match.roleSpecialty}</Text>
+          <Badge tone={match.verified ? Tone.Good : Tone.Warn}>{match.verified ? 'Verified match' : 'Not verified'}</Badge>
+          <SyntheticBadge />
+        </Cluster>
+        <Text>Coverage {match.coveragePercent}% ({match.matchedSkills.length}/{match.requiredSkillCount} skills)</Text>
+        <Text tone={TextTone.Good}>Evidence: {match.matchedSkills.join(', ') || 'none'}</Text>
+        <Text tone={TextTone.Soft}>Availability: {match.availableNow ? 'available now' : 'not available now'} · U.S. hours: {match.usHoursAvailable ? 'yes' : 'no'}</Text>
+        {match.gaps.length > 0 && <Text tone={TextTone.Bad}>Gaps: {match.gaps.join('; ')}</Text>}
+        {match.notes.length > 0 && <Text tone={TextTone.Warn}>{match.notes.join('; ')}</Text>}
+      </Stack>
+    </Card>
   )
 }
 
 function DraftCard({ title, draft, missingReason }: { title: string; draft: EmailDraft | null; missingReason?: string }) {
   return (
-    <div className="rounded border border-line p-3 text-sm">
-      <p className="mb-2 flex flex-wrap items-center gap-2 font-medium">
-        {title}
-        {draft && (
-          <Badge tone={draft.status === DraftStatus.HeldPendingVerification ? Tone.Warn : Tone.Neutral}>
-            {DRAFT_STATUS_LABEL[draft.status]}
-          </Badge>
+    <Card inset>
+      <Stack>
+        <Cluster gap={Gap.Tight}>
+          <Text strong>{title}</Text>
+          {draft && <Badge tone={draft.status === DraftStatus.HeldPendingVerification ? Tone.Warn : Tone.Neutral}>{DRAFT_STATUS_LABEL[draft.status]}</Badge>}
+        </Cluster>
+        {draft ? (
+          <>
+            <Text strong>Subject: {draft.subject}</Text>
+            <Text as="pre" tone={TextTone.Soft}>{draft.body}</Text>
+          </>
+        ) : (
+          <Text tone={TextTone.Soft} italic>{missingReason}</Text>
         )}
-      </p>
-      {draft ? (
-        <>
-          <p className="mb-2 font-medium">Subject: {draft.subject}</p>
-          <pre className="whitespace-pre-wrap font-sans">{draft.body}</pre>
-        </>
-      ) : (
-        <p className="italic text-ink-soft">{missingReason}</p>
-      )}
-    </div>
+      </Stack>
+    </Card>
   )
 }
 
 function DrawerBody({ opportunity }: { opportunity: Opportunity }) {
   const { drafts, eligibility, display } = opportunity
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold">{display.company}: {display.title}</h2>
-        <p className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-          {display.industry} · {display.domain} <StatusBadge status={eligibility.status} />
+    <Stack gap={Gap.Loose}>
+      <Stack gap={Gap.Tight}>
+        <Text as="h2" variant={TextVariant.Title}>{display.company}</Text>
+        <Text tone={TextTone.Soft}>{display.title}</Text>
+        <Cluster gap={Gap.Tight}>
+          <Text variant={TextVariant.Small} tone={TextTone.Muted}>{display.industry} · {display.domain}</Text>
+          <StatusBadge status={eligibility.status} />
           {opportunity.proposedToLeads > 1 && (
             <Badge tone={Tone.Warn}>Proposed to {opportunity.proposedToLeads} leads: {opportunity.bestMatch?.candidateId}</Badge>
           )}
-        </p>
-      </div>
+        </Cluster>
+      </Stack>
 
       <Section title="Score breakdown"><ScoreBreakdown opportunity={opportunity} /></Section>
 
       <Section title="Eligibility">
-        <ul className="list-disc pl-5 text-sm">
-          {eligibility.reasons.map((reason) => (
-            <li key={reason.postingId}>{reason.postingId}: {reason.reason} <span className="text-ink-muted">({reason.status})</span></li>
-          ))}
-        </ul>
-        {eligibility.confirmWorkingHours && <p className="mt-2 text-sm text-warn-ink">Confirm working hours (U.S. hours requirement unknown)</p>}
+        <Stack>
+          <BulletList items={eligibility.reasons.map((reason) => `${reason.postingId}: ${reason.reason} (${reason.status})`)} />
+          {eligibility.confirmWorkingHours && <Text tone={TextTone.Warn}>Confirm working hours (U.S. hours requirement unknown)</Text>}
+        </Stack>
       </Section>
 
       <Section title="Candidate matches">
         {opportunity.matches ? (
-          <div className="space-y-2">
+          <Stack>
             {opportunity.matches.map((match) => <MatchCard key={match.candidateId} match={match} />)}
-            {opportunity.matches.length === 0 && <p className="text-sm italic">No candidate in pool for this role</p>}
-          </div>
+            {opportunity.matches.length === 0 && <Text italic tone={TextTone.Soft}>No candidate in pool for this role</Text>}
+          </Stack>
         ) : (
-          <p className="text-sm italic text-ink-soft">{opportunity.matchNote}</p>
+          <Text tone={TextTone.Soft} italic>{opportunity.matchNote}</Text>
         )}
       </Section>
 
       <Section title="Outreach drafts (never sent)">
         {drafts ? (
-          <div className="grid gap-3 md:grid-cols-2">
+          <Stack>
             <DraftCard title="Variant A · candidate-first" draft={drafts.A} missingReason="Not generated: no verified candidate" />
             <DraftCard title="Variant B · hiring-process / speed-first" draft={drafts.B} />
-          </div>
+          </Stack>
         ) : (
-          <p className="text-sm italic text-ink-soft">No drafts: ineligible role</p>
+          <Text tone={TextTone.Soft} italic>No drafts: ineligible role</Text>
         )}
       </Section>
 
       <Section title="Linked duplicate postings">
         {opportunity.hasLinkedDuplicate ? (
-          <>
-            <p className="mb-2 text-sm">Merged postings: {opportunity.sourcePostingIds.join(', ')} (display from {display.postingId})</p>
-            <table className="w-full">
-              <thead><tr><th className={tableHeadClass}>Field</th><th className={tableHeadClass}>Values</th></tr></thead>
-              <tbody>
-                {opportunity.fieldConflicts.map((conflict) => (
-                  <tr key={conflict.field}>
-                    <td className={tableCellClass}>{conflict.field}</td>
-                    <td className={tableCellClass}>{conflict.values.map((entry) => `${entry.postingId}: ${entry.value}`).join(' | ')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+          <Stack>
+            <Text>Merged postings: {opportunity.sourcePostingIds.join(', ')} (display from {display.postingId})</Text>
+            <DataTable columns={CONFLICT_COLUMNS} rows={opportunity.fieldConflicts} getRowKey={(conflict) => conflict.field} />
+          </Stack>
         ) : (
-          <p className="text-sm text-ink-soft">No linked duplicates. Repeat postings are a signal of possible ongoing need, not proof of hiring difficulty.</p>
+          <Text tone={TextTone.Soft}>No linked duplicates. Repeat postings are a signal of possible ongoing need, not proof of hiring difficulty.</Text>
         )}
       </Section>
-    </div>
+    </Stack>
   )
 }
 
 export function LeadDrawer({ opportunityId, onClose }: { opportunityId: string; onClose: () => void }) {
   const state = useApi<Opportunity>(`/api/opportunities/${opportunityId}`)
-
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [onClose])
-
   return (
-    <div className="fixed inset-0 z-10 flex justify-end bg-ink/40" onClick={onClose}>
-      <aside role="dialog" aria-modal="true" aria-label="Lead detail" className="h-full w-full max-w-3xl overflow-y-auto bg-sunken p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <button onClick={onClose} className="mb-3 rounded bg-surface px-3 py-1 text-sm ring-1 ring-line-strong">Close ✕</button>
-        <ApiBoundary state={state}>{(opportunity) => <DrawerBody opportunity={opportunity} />}</ApiBoundary>
-      </aside>
-    </div>
+    <Drawer label="Lead detail" onClose={onClose}>
+      <ApiBoundary state={state}>{(opportunity) => <DrawerBody opportunity={opportunity} />}</ApiBoundary>
+    </Drawer>
   )
 }

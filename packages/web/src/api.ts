@@ -4,10 +4,14 @@ export interface ApiState<Data> {
   data: Data | null
   error: string | null
   loading: boolean
+  reload: () => void
 }
 
+type FetchState<Data> = Omit<ApiState<Data>, 'reload'>
+
 export function useApi<Data>(path: string): ApiState<Data> {
-  const [state, setState] = useState<ApiState<Data>>({ data: null, error: null, loading: true })
+  const [state, setState] = useState<FetchState<Data>>({ data: null, error: null, loading: true })
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -26,7 +30,7 @@ export function useApi<Data>(path: string): ApiState<Data> {
     return () => {
       cancelled = true
     }
-  }, [path])
+  }, [path, attempt])
 
-  return state
+  return { ...state, reload: () => setAttempt((current) => current + 1) }
 }

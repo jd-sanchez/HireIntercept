@@ -1,0 +1,14 @@
+.ui-field { display: grid; gap: var(--space-1); }
+.ui-field__label { font-size: 0.75rem; font-weight: 500; color: var(--color-ink-muted); }
+.ui-control {
+  font: inherit; font-size: 0.875rem; color: var(--color-ink); background: var(--color-surface);
+  border: 1px solid var(--color-line-strong); border-radius: var(--radius-control); padding: 0.45rem 0.7rem; min-height: 2.25rem;
+  transition: border-color var(--duration-quick) var(--ease-out);
+}
+.ui-control:hover { border-color: var(--color-ink-muted); }
+.ui-control--select {
+  appearance: none; padding-right: 2rem; min-width: 9rem;
+  background-image: linear-gradient(45deg, transparent 50%, var(--color-ink-muted) 50%), linear-gradient(135deg, var(--color-ink-muted) 50%, transparent 50%);
+  background-position: calc(100% - 1rem) 50%, calc(100% - 0.7rem) 50%; background-size: 0.3rem 0.3rem; background-repeat: no-repeat;
+}
+.ui-control--number { width: 6rem; }
